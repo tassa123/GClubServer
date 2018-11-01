@@ -17,6 +17,7 @@ const ApiRouter = require('./router/api')
 // const WeixinRouter = require('./router/weixin')
 const CrmRouter = require('./router/crm')
 const Weixin = require('./controller/weixin')
+const Test = require('./router/test')
 app.use(xmlParser());
 app.use(BodyParser())
 // app.use(koaBody({ multipart: true }));
@@ -29,6 +30,8 @@ app
     // .use(WeixinRouter.allowedMethods())
     .use(CrmRouter.routes())
     .use(CrmRouter.allowedMethods())
+    .use(Test.routes())
+    .use(Test.allowedMethods())
 app.on('error', async(err, ctx) => {
     logger.error(err)
     logger.info(ctx.request.body)

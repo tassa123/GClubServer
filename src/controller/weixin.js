@@ -11,8 +11,9 @@ const moment = require('moment')
 const Token = 'i54zyhCKa3o49c4X2' //微信token
 const AppId = 'wx95fd881c05d8828d'
 const AppSecret = 'f377f13881f0c9337650590b8236b8ef'
-const backgroundUrl = 'zMsD0vT80E6tuZDxn392Ebsr21LYYqxyDJGB4P9wOXOw02PEBPdQGe4vtMKZfWY2'
-const logoUrl = 'QY_n70D4AedUGNguLsDBJfNGW6xwkrb5NPTg3nZCbcNsXEu_zEYxznKfiswoXer5'
+const backgroundUrl = 'http://mmbiz.qpic.cn/mmbiz_jpg/vPFgKalzufqFfOvRltHsRxN3J4Na5MGrNuMfGAarN0mT5iaChN2tbZOLFYMLh4t2zBDJ1VqZlSnqDIrm5qGeuQw/0'
+const logoUrl = 'http://mmbiz.qpic.cn/mmbiz_jpg/vPFgKalzufqFfOvRltHsRxN3J4Na5MGrNuMfGAarN0mT5iaChN2tbZOLFYMLh4t2zBDJ1VqZlSnqDIrm5qGeuQw/0'
+const cardId = 'pW7GpxAm7A4lW8vzWwpUIjfwcNXg'
 
 function string2MD5(str){
     const hashCode = crypto.createHash('sha1'); //创建加密类型
@@ -66,8 +67,8 @@ class Weixin {
 
     async init(){
         await this.getAccessToken()
-        let result = await this.createMemberCard()
-        console.log(result)
+        // let result = await this.createMemberCard()
+        // console.log(result)
     }
 
     clearAccessToken(){
@@ -101,6 +102,7 @@ class Weixin {
                         let res = JSON.parse(result)
                         if(res.errcode){
                            this.clearAccessToken()
+                            console.log(res,errmsg)
                             reject(res.errmsg)
                         }
                         this.AccessTokenTime = moment()
@@ -122,36 +124,36 @@ class Weixin {
         });
     }
 
-    async createMemberCard(){
+    getMemberCard(){
         let cmd = {
-            "card": {
-                "card_type": "MEMBER_CARD",
-                "member_card": {
-                    "background_pic_url": backgroundUrl,
-                    "base_info": {
-                        "logo_url": logoUrl,
-                        "brand_name": "老鬼俱乐部",
-                        "code_type": "CODE_TYPE_BARCODE",
-                        "title": "微信会员测试卡",
-                        "color": "Color010",
-                        "notice": "使用时向服务员出示此券",
-                        "service_phone": "021-64332120",
-                        "description": "卡券说明balblabla",
-                        "date_info": {
-                            "type": "DATE_TYPE_PERMANENT"
+            card: {
+                card_type: "MEMBER_CARD",
+                member_card: {
+                    background_pic_url: backgroundUrl,
+                    base_info: {
+                        logo_url: logoUrl,
+                        brand_name: "老鬼俱乐部",
+                        code_type: "CODE_TYPE_BARCODE",
+                        title: "微信会员测试卡",
+                        color: "Color010",
+                        notice: "使用时向服务员出示此券",
+                        service_phone: "021-64332120",
+                        description: "卡券说明balblabla",
+                        date_info: {
+                            type: "DATE_TYPE_PERMANENT"
                         },
-                        "sku": {
+                        sku: {
                             "quantity": 50000000
                         },
-                        "get_limit": 1,
-                        "use_custom_code": true,
-                        "can_give_friend": false,
-                        "custom_url_name": "立即使用",
-                        "custom_url": "http://weixin.qq.com",
-                        "custom_url_sub_title": "6个汉字tips",
-                        "promotion_url_name": "营销入口1",
-                        "promotion_url": "http://www.qq.com",
-                        "need_push_on_view": true
+                        get_limit: 1,
+                        use_custom_code: true,
+                        can_give_friend: false,
+                        custom_url_name: "立即使用",
+                        custom_url: "http://weixin.qq.com",
+                        custom_url_sub_title: "6个汉字tips",
+                        promotion_url_name: "营销入口1",
+                        promotion_url: "http://www.qq.com",
+                        need_push_on_view: true
                     },
                     // "advanced_info": {
                     //     "use_condition": {
@@ -194,20 +196,20 @@ class Weixin {
                     //         "BIZ_SERVICE_DELIVER"
                     //     ]
                     // },
-                    "supply_bonus": true, // 显示积分
-                    "supply_balance": false, // 显示余额
-                    "prerogative": "这是测试用的老鬼会员卡", // 会员卡说明
-                    "auto_activate": true, // 是否自动激活
-                    "custom_field1": {
-                        "name_type": "优惠券",
-                        "url": "https://mp.weixin.qq.com/mp/homepage?__biz=MzI5OTQ1NTMyMw%3D%3D&hid=1&sn=920e7a3d22530a130618f3c2a969a1dc&scene=18"
-                    },
-                    "activate_url": "http://www.qq.com", // 激活会员卡的URL
-                    "custom_cell1": {
-                        "name": "老鬼小菜",
-                        "tips": "一句提示语",
-                        "url": "https://mp.weixin.qq.com/mp/homepage?__biz=MzI5OTQ1NTMyMw%3D%3D&hid=1&sn=920e7a3d22530a130618f3c2a969a1dc&scene=18"
-                    },
+                    supply_bonus: true, // 显示积分
+                    supply_balance: false, // 显示余额
+                    prerogative: "这是测试用的老鬼会员卡", // 会员卡说明
+                    auto_activate: true, // 是否自动激活
+                    // custom_field1: {
+                    //     name_type: "FIELD_NAME_TYPE_LEVEL",
+                    //     url: "http://www.qq.com"
+                    // },
+                    // activate_url: "http://www.qq.com", // 激活会员卡的URL
+                    // custom_cell1: {
+                    //     name: "老鬼小菜",
+                    //     tips: "一句提示语",
+                    //     url: "http://www.qq.com"
+                    // },
                     // "bonus_rule": {
                     //     "cost_money_unit": 100,
                     //     "increase_bonus": 1,
@@ -222,8 +224,113 @@ class Weixin {
                 }
             }
         }
+        return cmd
+    }
+
+    async createMemberCard(){
+        let cmd = {
+            card: {
+                card_type: "MEMBER_CARD",
+                member_card: {
+                    background_pic_url: backgroundUrl,
+                    base_info: {
+                        logo_url: logoUrl,
+                        brand_name: "老鬼俱乐部",
+                        code_type: "CODE_TYPE_BARCODE",
+                        title: "微信会员测试卡",
+                        color: "Color010",
+                        notice: "使用时向服务员出示此券",
+                        service_phone: "021-64332120",
+                        description: "卡券说明balblabla",
+                        date_info: {
+                            type: "DATE_TYPE_PERMANENT"
+                        },
+                        sku: {
+                            "quantity": 50000000
+                        },
+                        get_limit: 1,
+                        use_custom_code: true,
+                        can_give_friend: false,
+                        custom_url_name: "立即使用",
+                        custom_url: "http://weixin.qq.com",
+                        custom_url_sub_title: "6个汉字tips",
+                        promotion_url_name: "营销入口1",
+                        promotion_url: "http://www.qq.com",
+                        need_push_on_view: true
+                    },
+                    // "advanced_info": {
+                    //     "use_condition": {
+                    //         "accept_category": "鞋类",
+                    //         "reject_category": "阿迪达斯",
+                    //         "can_use_with_other_discount": true
+                    //     },
+                    //     "abstract": {
+                    //         "abstract": "微信餐厅推出多种新季菜品，期待您的光临",
+                    //         "icon_url_list": [
+                    //             "http://mmbiz.qpic.cn/mmbiz/p98FjXy8LacgHxp3sJ3vn97bGLz0ib0Sfz1bjiaoOYA027iasqSG0sjpiby4vce3AtaPu6cIhBHkt6IjlkY9YnDsfw/0"
+                    //         ]
+                    //     },
+                    //     "text_image_list": [
+                    //         {
+                    //             "image_url": "http://mmbiz.qpic.cn/mmbiz/p98FjXy8LacgHxp3sJ3vn97bGLz0ib0Sfz1bjiaoOYA027iasqSG0sjpiby4vce3AtaPu6cIhBHkt6IjlkY9YnDsfw/0",
+                    //             "text": "此菜品精选食材，以独特的烹饪方法，最大程度地刺激食 客的味蕾"
+                    //         },
+                    //         {
+                    //             "image_url": "http://mmbiz.qpic.cn/mmbiz/p98FjXy8LacgHxp3sJ3vn97bGLz0ib0Sfz1bjiaoOYA027iasqSG0sj piby4vce3AtaPu6cIhBHkt6IjlkY9YnDsfw/0",
+                    //             "text": "此菜品迎合大众口味，老少皆宜，营养均衡"
+                    //         }
+                    //     ],
+                    //     "time_limit": [
+                    //         {
+                    //             "type": "MONDAY",
+                    //             "begin_hour":0,
+                    //             "end_hour":10,
+                    //             "begin_minute":10,
+                    //             "end_minute":59
+                    //         },
+                    //         {
+                    //             "type": "HOLIDAY"
+                    //         }
+                    //     ],
+                    //     "business_service": [
+                    //         "BIZ_SERVICE_FREE_WIFI",
+                    //         "BIZ_SERVICE_WITH_PET",
+                    //         "BIZ_SERVICE_FREE_PARK",
+                    //         "BIZ_SERVICE_DELIVER"
+                    //     ]
+                    // },
+                    supply_bonus: true, // 显示积分
+                    supply_balance: false, // 显示余额
+                    prerogative: "这是测试用的老鬼会员卡", // 会员卡说明
+                    auto_activate: true, // 是否自动激活
+                    // custom_field1: {
+                    //     name_type: "FIELD_NAME_TYPE_LEVEL",
+                    //     url: "http://www.qq.com"
+                    // },
+                    // activate_url: "http://www.qq.com", // 激活会员卡的URL
+                    // custom_cell1: {
+                    //     name: "老鬼小菜",
+                    //     tips: "一句提示语",
+                    //     url: "http://www.qq.com"
+                    // },
+                    // "bonus_rule": {
+                    //     "cost_money_unit": 100,
+                    //     "increase_bonus": 1,
+                    //     "max_increase_bonus": 200,
+                    //     "init_increase_bonus": 10,
+                    //     "cost_bonus_unit": 5,
+                    //     "reduce_money": 100,
+                    //     "least_money_to_use_bonus": 1000,
+                    //     "max_reduce_bonus": 50
+                    // },
+                    // "discount": 10 //折扣
+                }
+            }
+        }
+        console.log(cmd)
         await this.getAccessToken()
         let str = JSON.stringify(cmd)
+        console.log(str)
         let options = {
             host: "api.weixin.qq.com",
             path: `/card/create?access_token=${this.AccessToken}`,
