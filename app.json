@@ -1,0 +1,12 @@
+{
+    "api":"/api",
+    "isProd":false,
+    "serverPort":"7001",
+    "dbHost":"106.14.139.46",
+    "dbUser":"root",
+    "dbPassword":"1qaz@WSX3edc",
+    "dbDatabase":"gcDev",
+    "redisHost":"106.14.139.46",
+    "redisPort":"6379",
+    "redisDB":3
+}
