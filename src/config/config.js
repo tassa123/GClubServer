@@ -52,6 +52,7 @@ const cCmdType = {
     SysLogin: 'sys_login',  //后台管理员登录
     SysUser:'sys_user',
     SysGoods:'sys_goods',
+    SysActivity:'sys_activity',
 
     // user
     UserSignUp: 'user_sign_up',

@@ -9,6 +9,7 @@ const appConfig = require('../../app');//引入配置文件
 const RedisService = require('../service/redis-service')
 const UserController = require('../controller/user')
 const GoodsController = require('../controller/goods')
+const ActivityController = require('../controller/activity')
 ApiRouter
     .post(appConfig.api, async(ctx) => {
         try {
@@ -43,6 +44,9 @@ ApiRouter
                     break;
                 case cCmdType.SysGoods:
                     await GoodsController.sysGoods(ctx)
+                    break;
+                case cCmdType.SysActivity:
+                    await ActivityController.sysActivity(ctx)
                     break;
                 default:
                     ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')

@@ -5,12 +5,13 @@ const dbService = require('../service/db-service')
 const _ = require('lodash')
 const moment = require('moment')
 const redisService = require('../service/redis-service')
+const GoodsController = require('./goods')
 
-class Goods {
+class Activity {
     constructor(){
 
     }
-    async sysGoods(ctx){
+    async sysActivity(ctx){
         let ruleResult = new RuleResult()
         let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
@@ -24,7 +25,7 @@ class Goods {
                 await this.itemCreate(ctx)
                 break;
             case cOpType.delete:
-               await this.itemDelete(ctx)
+                await this.itemDelete(ctx)
                 break;
             case cOpType.set:
                 await this.itemSet(ctx)
@@ -34,7 +35,7 @@ class Goods {
                 break;
         }
     }
-    async userGoods(ctx){
+    async userActivity(ctx){
         let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
         let cmdType = (requestBody || {}).cmdType;
@@ -92,31 +93,27 @@ class Goods {
         let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
         let cmdType = (requestBody || {}).cmdType;
-        let {op,id, amount,online,name,score,des,pic} = requestBody;
+        let {op,order,online,goodsId,ref,pic} = requestBody;
         // create
-        let uuid =id|| utilService.getUUID();
-        let insertQuery = `insert into goods_info(??) values(?)`
+        let uuid =utilService.getUUID();
+        let insertQuery = `insert into activity_info(??) values(?)`
         let propGroup = ['id']
         let valueGroup = [uuid]
-        if(!utilService.isStringEmpty(amount)){
-            propGroup.push('amount')
-            valueGroup.push(amount)
+        if(!utilService.isStringEmpty(order)){
+            propGroup.push('order')
+            valueGroup.push(order)
         }
         if(!utilService.isStringEmpty(online)){
             propGroup.push('online')
             valueGroup.push(online)
         }
-        if(!utilService.isStringEmpty(name)){
-            propGroup.push('name')
-            valueGroup.push(name)
+        if(!utilService.isStringEmpty(goodsId)){
+            propGroup.push('goodsId')
+            valueGroup.push(goodsId)
         }
-        if(!utilService.isStringEmpty(score)){
-            propGroup.push('score')
-            valueGroup.push(score)
-        }
-        if(!utilService.isStringEmpty(des)){
-            propGroup.push('des')
-            valueGroup.push(des)
+        if(!utilService.isStringEmpty(ref)){
+            propGroup.push('ref')
+            valueGroup.push(ref)
         }
         if(!utilService.isArrayEmpty(pic)){
             propGroup.push('pic')
@@ -130,7 +127,7 @@ class Goods {
         let requestBody = ctx.request.body || {}
         let cmdType = (requestBody || {}).cmdType;
         let {op,id} = requestBody;
-        let deleteQuery =  `update goods_info set del = 1 where id = ?`
+        let deleteQuery =  `delete from activity_info where id = ?`
         let deleteResult = await dbService.commonQuery(deleteQuery,[id])
         ctx.body = new RuleResult(cStatus.ok)
         return
@@ -139,36 +136,31 @@ class Goods {
         let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
         let cmdType = (requestBody || {}).cmdType;
-        let {op,id, amount,online,name,score,des,pic} = requestBody;
+        let {op,id,order,online,goodsId,ref,pic} = requestBody;
         let columnGroup = []
         let paramGroup = []
-        if(!utilService.isStringEmpty(amount)){
-            columnGroup.push('amount = ?')
-            paramGroup.push(amount)
+        if(!utilService.isStringEmpty(order)){
+            columnGroup.push('`order` = ?')
+            paramGroup.push(order)
         }
         if(!utilService.isStringEmpty(online)){
             columnGroup.push('online = ?')
             paramGroup.push(online)
         }
-        if(!utilService.isStringEmpty(name)){
-            columnGroup.push('name = ?')
-            paramGroup.push(name)
+        if(!utilService.isStringEmpty(goodsId)){
+            columnGroup.push('goodsId = ?')
+            paramGroup.push(goodsId)
         }
-        if(!utilService.isStringEmpty(score)){
-            columnGroup.push('score = ?')
-            paramGroup.push(score)
-        }
-        if(!utilService.isStringEmpty(des)){
-            columnGroup.push('des = ?')
-            paramGroup.push(des)
+        if(!utilService.isStringEmpty(ref)){
+            columnGroup.push('ref = ?')
+            paramGroup.push(ref)
         }
         if(!utilService.isArrayEmpty(pic)){
             columnGroup.push('pic = ?')
             paramGroup.push(JSON.stringify(pic))
         }
-
         paramGroup.push(id)
-        let setQuery = `update goods_info set ${columnGroup.join(',')} where id = ?`
+        let setQuery = `update activity_info set ${columnGroup.join(',')} where id = ?`
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
         ctx.body= new RuleResult(cStatus.ok)
         return
@@ -190,7 +182,7 @@ class Goods {
         let existQuery = `select 
                          id,
                          del
-                         from goods_info 
+                         from activity_info 
                     ${_whereGroup.length>0 ?'where '+ _whereGroup.join(` ${buffer} `) : ''}
                     ${_whereGroup.length === 0 && whereGroup.length > 0 ? 'where '+whereGroup.join(` ${buffer} `) : ''}
                     ${_whereGroup.length > 0 && whereGroup.length > 0 ? 'and '+whereGroup.join(` ${buffer} `) : ''}
@@ -198,104 +190,74 @@ class Goods {
         let existResult = await dbService.commonQuery(existQuery,paramGroup)
         return existResult
     }
-    async getItem(params,countInfo){
-        let {id,skip,pageNum,filters,sorts} = params;
-        skip = skip || 0;
+    async getItem(params){
+        let {id,skip,filters,sorts} = params;
         filters = filters || {}
         sorts = sorts || []
-        let {amount,online,name,score,ctime} = filters;
-        let limit = pageNum || 10;
+        let {online,ctime} = filters;
         let whereGroup = []
         let orderGroup = []
         let paramsGroup = []
 
         if(!utilService.isStringEmpty(id)){
-            whereGroup.push('gi.id = ?')
+            whereGroup.push('ai.id = ?')
             paramsGroup.push(id)
-            limit = 1
-            skip = 0
         }else {
-            whereGroup.push('gi.del != 1')
-            orderGroup.unshift('gi.ctime desc')
-        }
-        if(!utilService.isStringEmpty(name)){
-            whereGroup.push('gi.name like ?')
-            paramsGroup.push(`%${name}%`)
-        }
-        if(!utilService.isStringEmpty((amount||[])[0])){
-            whereGroup.push('gi.amount > ?')
-            paramsGroup.push((amount||[])[0])
-        }
-        if(!utilService.isStringEmpty((amount||[])[1])){
-            whereGroup.push('gi.amount < ?')
-            paramsGroup.push((amount||[])[1])
-        }
-        if(!utilService.isStringEmpty((score||[])[0])){
-            whereGroup.push('gi.score > ?')
-            paramsGroup.push((score||[])[0])
-        }
-        if(!utilService.isStringEmpty((score||[])[1])){
-            whereGroup.push('gi.score < ?')
-            paramsGroup.push((score||[])[1])
+            orderGroup.unshift('ai.order asc')
         }
         if(!utilService.isStringEmpty(online)){
-            whereGroup.push('gi.online = ?')
+            whereGroup.push('ai.online = ?')
             paramsGroup.push(online)
         }
-
         if(!utilService.isStringEmpty((ctime||[])[0])){
-            whereGroup.push('gi.ctime > ?')
+            whereGroup.push('ai.ctime > ?')
             paramsGroup.push((ctime||[])[0])
         }
         if(!utilService.isStringEmpty((ctime||[])[1])){
-            whereGroup.push('gi.ctime < ?')
+            whereGroup.push('ai.ctime < ?')
             paramsGroup.push((ctime||[])[1])
         }
 
-        // orderGroup.unshift('convert(gi.name using gbk) asc')
+        // orderGroup.unshift('convert(ai.name using gbk) asc')
         // for(let sort of sorts){
         //     if(Array.isArray(sort) && (sort[1] === -1 || sort[1] === 1) && ['phone'].indexOf(sort[0]) > -1){
-        //         orderGroup.unshift(`gi.${sort[0]} ${sort[1]>-1 ? 'asc' : 'desc'}`)
+        //         orderGroup.unshift(`ai.${sort[0]} ${sort[1]>-1 ? 'asc' : 'desc'}`)
         //     }
         // }
         let detailQuery =
             `select
-                    gi.id as id,
-                    gi.del as del,
-                    gi.amount as amount,
-                    gi.online as online,
-                    gi.name as name,
-                    gi.score as score,
-                    gi.des as des,
-                    gi.pic as pic,
-                    gi.ctime as ctime
-            from goods_info as gi
+                    ai.id as id,     
+                    ai.\`order\` as \`order\`,
+                    ai.online as online,
+                    ai.goodsId as goodsId,
+                    ai.ref as ref,
+                    ai.pic as pic,
+                    ai.ctime as ctime
+            from activity_info as ai
            `
-        let allQuery = `select count(*) as tnum from goods_info as gi`
         if(whereGroup.length > 0){
             detailQuery = `${detailQuery} where ${whereGroup.join(' and ')}`
-            allQuery = `${allQuery} where ${whereGroup.join(' and ')}`
         }
         if(orderGroup.length > 0){
             detailQuery = `${detailQuery} order by ${orderGroup.join(' , ')}`
         }
-        if(limit){
-            detailQuery = `${detailQuery} limit ${skip},${limit}`
-        }
         let queryResult = await dbService.commonQuery(detailQuery,paramsGroup)
-        let tnumResult = await dbService.commonQuery(allQuery,paramsGroup)
         for(let row of queryResult){
             if(!utilService.isStringEmpty(row.pic)){
                 row.pic = JSON.parse(row.pic)
             }
-        }
-        if(!utilService.isNullOrUndefined(countInfo) && !utilService.isNullOrUndefined(countInfo.tnum)){
-            countInfo.tnum = tnumResult[0].tnum
-            countInfo.tpage = Math.ceil(tnumResult[0].tnum/limit)
-            countInfo.hasMore = (skip+limit)<tnumResult[0].tnum
+            if(!utilService.isStringEmpty(row.goodsId)){
+                let goodsDetailQuery = {
+                    id:row.goodsId
+                }
+                let goodsDetail = await GoodsController.getItem(goodsDetailQuery)
+                goodsDetail = (goodsDetail||[])[0]
+                delete row.goodsId
+                row.goods = goodsDetail
+            }
         }
         return queryResult
     }
 }
 
-module.exports = new Goods();
+module.exports = new Activity();
