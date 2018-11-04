@@ -5,7 +5,23 @@ const RuleResult = require('../config/rule-result')
 const CrmRouter = new Router();
 const queryString = require('query-string')
 const appConfig = require('../../app');//引入配置文件
+const utilService = require('../service/util-service')
+const moment = require('moment')
+const _ = require('lodash')
 
+{
+    let secretcode = 'ABCDEFG'
+    let appkey = 'appkey'
+    let timestamp = moment().format('YYYY-MM-DD HH:mm:ss')
+    let sign; // 不加密
+    let signmethod = 'MD5' // 不加密
+    let format = 'json'
+    let v = '1.0'
+    let method = 'ticket.api.stadium.get'
+    let str=`appkey=${appkey}&format=${format}&method=${method}&timestamp=${timestamp}&v=${v}${secretcode}`
+    sign = utilService.string2MD5(str)
+    // console.log(sign,timestamp)
+}
 CrmRouter
     .post('/ticket', async(ctx) => {
         let params = ctx.request.query || {}

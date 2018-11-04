@@ -1,11 +1,11 @@
-const RuleResult = require('../config/rule-result')
-const {cStatus,cCmdType,cUserType,cOpType,cUserOp,cConferenceType} = require('../config/config')
-const utilService = require('../service/util-service')
-const dbService = require('../service/db-service')
+const RuleResult = require('../../config/rule-result')
+const {cStatus,cCmdType,cUserType,cOpType,cUserOp,cConferenceType} = require('../../config/config')
+const utilService = require('../../service/util-service')
+const dbService = require('../../service/db-service')
 const _ = require('lodash')
 const moment = require('moment')
-const smsService = require('../service/sms-service')
-const appConfig = require('../../app');//引入配置文件
+const smsService = require('../../service/sms-service')
+const appConfig = require('../../../app');//引入配置文件
 
 let UserInvitation=async(ctx)=>{
     let requestBody = ctx.request.body || {}

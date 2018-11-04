@@ -30,7 +30,6 @@ async function commonQuery(query,params,debug=false){
                 if (error){
                     let sql = mysql.format(query, params);
                     logger.error(sql)
-                    logger.error(error)
                     reject(error)
                 }else if(debug){
                     let sql = mysql.format(query, params);

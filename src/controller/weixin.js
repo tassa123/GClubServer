@@ -5,7 +5,7 @@ const RuleResult = require('../config/rule-result')
 const WeixinRouter = new Router();
 const queryString = require('query-string')
 const appConfig = require('../../app');//引入配置文件
-const crypto =  require('crypto');//引入加密模块
+
 const https = require("https");
 const moment = require('moment')
 const Token = 'i54zyhCKa3o49c4X2' //微信token
@@ -14,12 +14,6 @@ const AppSecret = 'f377f13881f0c9337650590b8236b8ef'
 const backgroundUrl = 'http://mmbiz.qpic.cn/mmbiz_jpg/vPFgKalzufqFfOvRltHsRxN3J4Na5MGrNuMfGAarN0mT5iaChN2tbZOLFYMLh4t2zBDJ1VqZlSnqDIrm5qGeuQw/0'
 const logoUrl = 'http://mmbiz.qpic.cn/mmbiz_jpg/vPFgKalzufqFfOvRltHsRxN3J4Na5MGrNuMfGAarN0mT5iaChN2tbZOLFYMLh4t2zBDJ1VqZlSnqDIrm5qGeuQw/0'
 const cardId = 'pW7GpxAm7A4lW8vzWwpUIjfwcNXg'
-
-function string2MD5(str){
-    const hashCode = crypto.createHash('sha1'); //创建加密类型
-    let resultCode = hashCode.update(str,'utf8').digest('hex'); //对传入的字符串进行加密
-    return resultCode
-}
 
 WeixinRouter
     .post('/wechat', async(ctx) => {
@@ -66,7 +60,7 @@ class Weixin {
     }
 
     async init(){
-        await this.getAccessToken()
+        // await this.getAccessToken()
         // let result = await this.createMemberCard()
         // console.log(result)
     }

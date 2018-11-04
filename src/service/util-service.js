@@ -3,6 +3,8 @@ const ncp = require('ncp').ncp;
 const uuidv1 = require('uuid/v1');
 const uuidv4 = require('uuid/v4');
 const moment = require('moment')
+const crypto =  require('crypto');//引入加密模块
+const ObjectID = require("bson-objectid");
 
 // 删除文件夹
 let unlinkFolderAsync=(path)=>{
@@ -69,16 +71,22 @@ let getTimeStamp=(time)=>{
     return t;
 }
 
-let isNullOrUndefined = (val)=> {
+function isNullOrUndefined(val){
     return typeof val === 'undefined' || val == null;
 }
 
-let isStringEmpty = (string)=> {
+function isStringEmpty(string){
     return isNullOrUndefined(string) || '' === string;
 }
 
-let isArrayEmpty = (array)=>{
+function isArrayEmpty(array){
     return isNullOrUndefined(array) || !Array.isArray(array) || array.length === 0;
+}
+
+function string2MD5(str){
+    const hashCode = crypto.createHash('sha1'); //创建加密类型
+    let resultCode = hashCode.update(str,'utf8').digest('hex'); //对传入的字符串进行加密
+    return resultCode
 }
 
 
@@ -92,5 +100,6 @@ module.exports = {
     isStringEmpty:isStringEmpty,
     isArrayEmpty:isArrayEmpty,
     getTimeStamp:getTimeStamp,
-    getSID:getSID
+    getSID:getSID,
+    string2MD5:string2MD5
 }

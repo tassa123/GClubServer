@@ -6,14 +6,9 @@ const ApiRouter = new Router();
 const {cStatus,cCmdType} = require('../config/config')
 const utilService = require('../service/util-service')
 const appConfig = require('../../app');//引入配置文件
-const UserController = require('../controller/user')
-const ConferenceController = require('../controller/conference')
-const InvitationController = require('../controller/invitation')
-const AnswerController = require('../controller/answer')
-const VCodeController = require('../controller/vcode')
-const LoadingController = require('../controller/loading')
 const RedisService = require('../service/redis-service')
-
+const UserController = require('../controller/user')
+const GoodsController = require('../controller/goods')
 ApiRouter
     .post(appConfig.api, async(ctx) => {
         try {
@@ -40,48 +35,23 @@ ApiRouter
             }
 
             switch (cmdType){
-                case cCmdType.SysLogin:
-                    await UserController.SysLogin(ctx);
-                    break;
-                case cCmdType.UserInfo:
-                    await UserController.UserInfo(ctx)
-                    break;
-                case cCmdType.UserLogin:
-                    await UserController.UserLogin(ctx)
-                    break;
                 case cCmdType.SysUser:
                     await UserController.SysUser(ctx)
                     break;
-                case cCmdType.SysConference:
-                    await ConferenceController.SysConference(ctx)
+                case cCmdType.SysLogin:
+                    await UserController.SysLogin(ctx)
                     break;
-                case cCmdType.UserConference:
-                    await ConferenceController.UserConference(ctx)
-                    break;
-                case cCmdType.SysInvitation:
-                    await InvitationController.SysInvitation(ctx)
-                    break;
-                case cCmdType.UserInvitation:
-                    await InvitationController.UserInvitation(ctx)
-                    break;
-                case cCmdType.SysAnswer:
-                    await AnswerController.SysAnswer(ctx)
-                    break;
-                case cCmdType.UserAnswer:
-                    await AnswerController.UserAnswer(ctx)
-                    break;
-                case cCmdType.SysVcode:
-                case cCmdType.UserVcode:
-                    await VCodeController.SysVcode(ctx)
-                    break;
-                case cCmdType.SysLoading:
-                case cCmdType.UserLoading:
-                    await LoadingController.SysLoading(ctx)
+                case cCmdType.SysGoods:
+                    await GoodsController.sysGoods(ctx)
                     break;
                 default:
                     ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')
             }
         }catch (e){
+            if(e && e.sqlState === '23000'){
+                ctx.body = new RuleResult(cStatus.existing,'','err')
+                return
+            }
             logger.error(e)
             ctx.body = new RuleResult(cStatus.err,'','err')
         }
