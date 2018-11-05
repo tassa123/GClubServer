@@ -10,6 +10,7 @@ const RedisService = require('../service/redis-service')
 const UserController = require('../controller/user')
 const GoodsController = require('../controller/goods')
 const ActivityController = require('../controller/activity')
+const OrderController = require('../controller/order')
 ApiRouter
     .post(appConfig.api, async(ctx) => {
         try {
@@ -47,6 +48,9 @@ ApiRouter
                     break;
                 case cCmdType.SysActivity:
                     await ActivityController.sysActivity(ctx)
+                    break;
+                case cCmdType.SysOrder:
+                    await OrderController.sysOrder(ctx)
                     break;
                 default:
                     ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')

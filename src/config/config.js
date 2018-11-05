@@ -22,7 +22,10 @@ const cStatus = {
     normal:'normal',
     canceled:'canceled',
     invalidSid:'invalidSid',
-    unactivated:'unactivated'
+    unactivated:'unactivated',
+    shortOfGoods:'shortOfGoods',
+    shortOfFund:'shortOfFund',
+    notAllowed:'notAllowed'
 }
 
 const cOpType = {
@@ -37,9 +40,7 @@ const cOpType = {
     get:'get',  //获取
     set:'set',
     check:'check',
-    verify:'verify',
-    sendQuestionnaire:'sendQuestionnaire',
-    pushMsg:'pushMsg'
+    verify:'verify'
 };
 
 const cUserOp={
@@ -53,6 +54,7 @@ const cCmdType = {
     SysUser:'sys_user',
     SysGoods:'sys_goods',
     SysActivity:'sys_activity',
+    SysOrder:'sys_order',
 
     // user
     UserSignUp: 'user_sign_up',
@@ -61,21 +63,16 @@ const cCmdType = {
 
 const cUserType  = {
     admin : 'admin',
-    guest : 'guest',
     user : 'user',
-    doctor : 'doctor',
     sys : 'sys',
-    clinic:'clinic',
-}
-const cConferenceType = {
-    agent:'agent'
 }
 
-const cAnswerType={
-    customizedInfo:'customizedInfo',
-    interaction:'interaction',
-    questionnaire:'questionnaire'
+const cOrderType = {
+    exchange:'exchange',
+    ticket:'ticket',
+    bill:'bill'
 }
+
 
 module.exports = {
     cStatus:cStatus,
@@ -83,6 +80,5 @@ module.exports = {
     cCmdType:cCmdType,
     cUserType:cUserType,
     cUserOp:cUserOp,
-    cConferenceType:cConferenceType,
-    cAnswerType:cAnswerType
+    cOrderType:cOrderType
 };
