@@ -9,6 +9,7 @@ const redisService = require('../service/redis-service')
 const Goods = require('./goods')
 const User = require('./user')
 const Log = require('./log')
+const YinBao = require('./yinbao')
 
 class Order {
     constructor(){
@@ -39,30 +40,24 @@ class Order {
         }
     }
     async userOrder(ctx){
-        let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {accountName,password} = requestBody;
-        if(utilService.isStringEmpty(accountName) || utilService.isStringEmpty(password)){
-            ctx.body = new RuleResult(cStatus.invalidParams);
-            return
-        }
-        let loginQuery =
-            `select id
-        from user_info
-        where type in (?) and accountName = ?  and password = ?
-        limit 1`
-        let loginResult =await dbService.commonQuery(loginQuery,[[cUserType.sys],accountName,password])
-        if(loginResult.length > 0){
-            let id = loginResult[0].id;
-            let detailResult = await this.getItem({id})
-            let detail = detailResult[0]
-            let sid = utilService.getSID();
-            await redisService.set(sid,id)
-            detail.sid = sid
-            ctx.body = new RuleResult(cStatus.ok,detail);
-        }else {
-            ctx.body = new RuleResult(cStatus.notExists);
+        let {op} = requestBody;
+        switch (op) {
+            case cOpType.get:
+                await this.itemGet(ctx)
+                break;
+            case cOpType.create:
+                await this.itemCreate(ctx)
+                break;
+            case cOpType.delete:
+                await this.itemDelete(ctx)
+                break;
+            case cOpType.set:
+                await this.itemSet(ctx)
+                break;
+            default:
+                ctx.body =  new RuleResult(cStatus.invalidParams,'','op');
+                break;
         }
     }
     async itemGet(ctx){
@@ -93,10 +88,8 @@ class Order {
         ctx.body = ruleResult
     }
     async itemCreate(ctx){
-        let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {op,outId,userId,phone,goodsId,goods,score,rate=1.00,type,status=cStatus.normal,logs={}} = requestBody;
+        let {op,outId,endNum,payTime,userId,phone,goodsId,goods,score,rate=1.00,type,status=cStatus.normal,logs={},ctime} = requestBody;
         if([cOrderType.bill,cOrderType.exchange,cOrderType.ticket].indexOf(type) === -1){
             ctx.body = new RuleResult(cStatus.invalidParams,null,'type')
             return
@@ -113,11 +106,44 @@ class Order {
             return
         }
         let userDetail = userExistResult[0]
-        let _goodsDetail
         let _score
         if(type === cOrderType.exchange){
             logs = new Op(userDetail.name)
             logs.userId = userDetail.id
+        }
+        if(type === cOrderType.bill){
+            if(utilService.isStringEmpty(userId) ||
+                utilService.isStringEmpty(endNum)
+            ){
+                ctx.body = new RuleResult(cStatus.invalidParams)
+                return
+            }
+            let payDay = moment(payTime).format('YYYY-MM-DD')
+            let timeSpan = [`${payDay} 00:00:00`,`${payDay} 23:59:59`]
+            let orderResult = await YinBao.getBill(timeSpan)
+            let orderList = orderResult.data.result || []
+            let endNumReg = new RegExp(".*"+endNum.toString()+"$")
+            let curOrder = _.find(orderList,(order)=>{
+                outId = order.sn.toString();
+                return endNumReg.test(outId) && order.invalid === 0;
+            })
+            if(!curOrder){
+                // 订单不存在
+                ctx.body = new RuleResult(cStatus.notExists,null,'订单不存在');
+                return
+            }
+            // 判断订单是否已经被核销
+            let existResult = await this.itemExists({outId:outId})
+            if(existResult.length > 0){
+                ctx.body = new RuleResult(cStatus.existing,null,'订单已被核销');
+                return
+            }
+
+            ctime = utilService.getTimeStamp(curOrder.datetime)
+            logs = new Op(userDetail.name,`线下消费${curOrder.totalAmount}`,ctime)
+            logs.userId = userDetail.id
+            goods = curOrder;
+            _score = parseInt(curOrder.totalAmount * rate)
         }
         if(!utilService.isStringEmpty(goodsId)){
             // 自动绑定当前对应的商品信息
@@ -130,7 +156,6 @@ class Order {
                 return
             }
             goods = goodsDetail[0]
-            _goodsDetail= goods
             // 判断商品是否可售
             if(goods.online !== 1){
                 ctx.body = new RuleResult(cStatus.notAllowed,null,'商品不可售')
@@ -183,9 +208,13 @@ class Order {
             propGroup.push('rate')
             valueGroup.push(rate)
         }
+        if(!utilService.isStringEmpty(ctime)){
+            propGroup.push('ctime')
+            valueGroup.push(ctime)
+        }
         if(!utilService.isNullOrUndefined(logs)){
             propGroup.push('logs')
-            valueGroup.push(JSON.stringify(logs))
+            valueGroup.push(JSON.stringify([logs]))
         }
 
         if(type === cOrderType.exchange){
@@ -201,10 +230,28 @@ class Order {
                 {
                     userId:userDetail.id,
                     orderId:uuid,
-                    msg:`兑换${_goodsDetail.name}`,
+                    msg:`兑换${goods.name}`,
+                    score:-Math.abs(_score)
+                },true)
+        }
+        if(type === cOrderType.bill){
+            // 用户增加积分
+            let subQuery =`
+                update user_info set
+                score = (score + ?)
+                where id = ?
+            `
+            await dbService.commonQuery(subQuery,[_score,userDetail.id])
+            // 添加积分记录
+            await Log.itemCreate(
+                {
+                    userId:userDetail.id,
+                    orderId:uuid,
+                    msg:`下线消费${goods.totalAmount}`,
                     score:_score
                 },true)
         }
+        // todo 积分变动检查用户等级
 
         // 添加订单记录
         let insertResult = await dbService.commonQuery(insertQuery,[propGroup,valueGroup])
@@ -215,7 +262,7 @@ class Order {
                 amount = (amount - 1)
                 where id = ?
             `
-            await dbService.commonQuery(subQuery,[_goodsDetail.id])
+            await dbService.commonQuery(subQuery,[goods.id])
         }
         ctx.body = new RuleResult(cStatus.ok,{id:uuid})
     }
@@ -267,7 +314,7 @@ class Order {
         ctx.body= new RuleResult(cStatus.ok)
         return
     }
-    async itemExists({_buffer,id,...others},_whereGroup,_paramGroup){
+    async itemExists({_buffer,id,outId,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []
         let whereGroup = [];
         let paramGroup = _paramGroup || [];
@@ -275,6 +322,10 @@ class Order {
         if(!utilService.isStringEmpty(id)){
             whereGroup.push('id = ?')
             paramGroup.push(id)
+        }
+        if(!utilService.isStringEmpty(outId)){
+            whereGroup.push('outId = ?')
+            paramGroup.push(outId)
         }
         if(whereGroup.length>0){
             whereGroup[0] = `(${whereGroup[0]}`

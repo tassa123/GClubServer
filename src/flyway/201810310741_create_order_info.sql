@@ -2,7 +2,7 @@ CREATE TABLE `order_info` (
 `id` varchar(36) CHARACTER SET utf8mb4 NOT NULL COMMENT 'id',
 `del` tinyint default 0 COMMENT '删除标志位',
 `outId` varchar(100)  comment '外部ID',
-`userId` varchar(36) CHARACTER SET utf8mb4 NOT NULL  COMMENT '用户id',
+`userId` varchar(36) CHARACTER SET utf8mb4 COMMENT '用户id',
 `goodsId` varchar(36) CHARACTER SET utf8mb4 COMMENT '商品id',
 `goods` JSON comment '商品信息',
 `score` int default 0 comment '积分变动',

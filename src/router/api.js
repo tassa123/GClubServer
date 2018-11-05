@@ -26,7 +26,8 @@ ApiRouter
                 return
             }
 
-            if([cCmdType.SysLogin,cCmdType.SysVcode,cCmdType.YBsignature,cCmdType.UserLogin,cCmdType.UserInfo,'yb_test'].indexOf(cmdType) === -1){
+            if([cCmdType.SysLogin,cCmdType.SysVcode,cCmdType.YBsignature,cCmdType.UserLogin,cCmdType.UserInfo,
+                'yb_test',cCmdType.YBGetPushConfig,cCmdType.YBSetPushConfig].indexOf(cmdType) === -1){
                 if(utilService.isStringEmpty(sid)){
                     ctx.body = new RuleResult(cStatus.invalidSid)
                     return
@@ -55,11 +56,11 @@ ApiRouter
                 case cCmdType.SysOrder:
                     await OrderController.sysOrder(ctx)
                     break;
+                case cCmdType.UserOrder:
+                    await OrderController.userOrder(ctx)
+                    break;
                 case cCmdType.YBsignature:
                     await YinBaoController.getSignature(ctx)
-                    break;
-                case 'yb_test':
-                    await YinBaoController.test(ctx);
                     break;
                 default:
                     ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')

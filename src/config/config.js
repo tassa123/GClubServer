@@ -50,6 +50,8 @@ const cUserOp={
 const cCmdType = {
     // crm
     YBsignature:"yb_signature",
+    YBGetPushConfig:"yb_get_push_config",
+    YBSetPushConfig:"yb_set_push_config",
     fileUpload:'file_upload',
     //admin
     SysLogin: 'sys_login',  //后台管理员登录
@@ -60,7 +62,8 @@ const cCmdType = {
 
     // user
     UserSignUp: 'user_sign_up',
-    UserLogin: 'user_login'
+    UserLogin: 'user_login',
+    UserOrder:'user_order'
 };
 
 const cUserType  = {
