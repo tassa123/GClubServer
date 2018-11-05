@@ -1,13 +1,16 @@
 const Router = require('koa-router')
 const Log4js = require('koa-log4')
-const logger = Log4js.getLogger('weixin');
+const logger = Log4js.getLogger('crm');
 const RuleResult = require('../config/rule-result')
 const CrmRouter = new Router();
 const queryString = require('query-string')
 const appConfig = require('../../app');//引入配置文件
 const utilService = require('../service/util-service')
 const moment = require('moment')
+const {cStatus,cCmdType,cUserType,cOpType,cUserOp,cOrderType} = require('../config/config')
 const _ = require('lodash')
+const UserController = require('../controller/user')
+const OrderController = require('../controller/order')
 
 {
     let secretcode = 'ABCDEFG'
@@ -23,29 +26,68 @@ const _ = require('lodash')
     // console.log(sign,timestamp)
 }
 CrmRouter
-    .post('/ticket', async(ctx) => {
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        console.log(requestBody)
-    })
-    .post('/bill', async(ctx) => {
-        //1.获取微信服务器Get请求的参数 signature、timestamp、nonce、echostr
-        let signature = ctx.request.query.signature,//微信加密签名
-            timestamp = ctx.request.query.timestamp,//时间戳
-            nonce = ctx.request.query.nonce,//随机数
-            echostr = ctx.request.query.echostr;//随机字符串
-        //2.将token、timestamp、nonce三个参数进行字典序排序
-        let array = [Token,timestamp,nonce];
-        array.sort();
-        //3.将三个参数字符串拼接成一个字符串进行sha1加密
-        let tempStr = array.join('');
-        const hashCode = crypto.createHash('sha1'); //创建加密类型
-        let resultCode = hashCode.update(tempStr,'utf8').digest('hex'); //对传入的字符串进行加密
-        //4.开发者获得加密后的字符串可与signature对比，标识该请求来源于微信
-        if(resultCode === signature){
-            ctx.body = echostr;
-        }else{
-            ctx.body = 'mismatch';
+    .post('/ticket/notice', async(ctx) => {
+        try {
+            let requestBody = ctx.request.body || {}
+            let headers = ctx.request.headers;
+            let {orderNo,msgMobile,realPay,voucherId,status,addtime,tvList} = requestBody
+            if(utilService.isStringEmpty(orderNo) ||
+                utilService.isStringEmpty(msgMobile) ||
+                utilService.isStringEmpty(realPay) ||
+                utilService.isStringEmpty(voucherId) ||
+                utilService.isStringEmpty(status)
+            ){
+                ctx.body = {
+                    st:'invalidParams',
+                    msg:'缺少参数'
+                }
+                return
+            }
+            // 判断订单是否已创建
+            let orderuserExistResult = await OrderController.itemExists({outId:orderNo})
+            if(orderuserExistResult.length > 0){
+                ctx.body = {
+                    st:'existing',
+                    msg:'订单已存在'
+                }
+                return
+            }
+            let userId
+            // 确认用户是否已经存在
+            let userExistResult = await UserController.itemExists({phone:msgMobile})
+            if(0 === userExistResult.length){
+                // 如果该手机号没有注册会员 则主动注册 并短信通知
+                let createCmd = {
+                    phone:msgMobile,
+                    type:cUserType.user,
+                    status:cStatus.unactivated
+                }
+                userId = await UserController.itemCreate(createCmd,true)
+                // todo 短信推送
+            }else {
+                userId = userExistResult[0].id
+            }
+            // 创建订单
+            let orderCreateCmd = {
+                outId:orderNo,
+                userId:userId,
+                goods:requestBody,
+                payment:realPay,
+                type:cOrderType.ticket,
+                ctime:addtime
+            }
+            let orderCreateResult = await OrderController.itemCreate(orderCreateCmd,true)
+            ctx.body = {
+                st:'ok',
+                msg:''
+            }
+
+        }catch (e){
+            logger.error(e)
+            ctx.body = {
+                st:'fail',
+                msg:'失败'
+            }
         }
     })
 

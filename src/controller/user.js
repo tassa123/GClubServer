@@ -141,11 +141,9 @@ class User {
         }
         ctx.body = ruleResult
     }
-    async itemCreate(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {op, name, phone, level, score, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime} = requestBody;
+    async itemCreate(ctx,innerCall=false){
+        let requestBody = innerCall ? ctx : ctx.request.body || {}
+        let {op, name, phone, level=1, score=0, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime} = requestBody;
         let existResult = await this.itemExists({_buffer:'or',phone,accountName,wxAccountName,openid})
         if(existResult.length>0){
             let userDetail = existResult[0]
@@ -159,7 +157,7 @@ class User {
         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
             let insertResult = await dbService.commonQuery(insertQuery,[uuid,name,phone,level,score,accountName,wxAccountName,password,type,status,openid,birthday?utilService.getTimeStamp(birthday):null,sex,headPic,activeTime ? utilService.getTimeStamp(activeTime):null])
             ctx.body = new RuleResult(cStatus.ok,{id:uuid})
-            return
+            return uuid
         }
     }
     async itemDelete(ctx){

@@ -78,6 +78,13 @@ const cOrderType = {
     bill:'bill'
 }
 
+const cMsgType = {
+    vcode:'vcode', // 验证码
+    invite:'invite',// 邀请注册
+    levelUp:"levelUp",// 升级
+    scoreChange:'scoreChange',// 积分变动
+}
+
 
 module.exports = {
     cStatus:cStatus,
@@ -85,5 +92,6 @@ module.exports = {
     cCmdType:cCmdType,
     cUserType:cUserType,
     cUserOp:cUserOp,
-    cOrderType:cOrderType
+    cOrderType:cOrderType,
+    cMsgType:cMsgType
 };

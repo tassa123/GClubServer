@@ -87,9 +87,9 @@ class Order {
         }
         ctx.body = ruleResult
     }
-    async itemCreate(ctx){
-        let requestBody = ctx.request.body || {}
-        let {op,outId,endNum,payTime,userId,phone,goodsId,goods,score,rate=1.00,type,status=cStatus.normal,logs={},ctime} = requestBody;
+    async itemCreate(ctx,innerCall = false){
+        let requestBody = innerCall ? ctx : ctx.request.body || {}
+        let {op,outId,endNum,payTime,payment,userId,phone,goodsId,goods,score,rate=1.00,type,status=cStatus.normal,logs={},ctime} = requestBody;
         if([cOrderType.bill,cOrderType.exchange,cOrderType.ticket].indexOf(type) === -1){
             ctx.body = new RuleResult(cStatus.invalidParams,null,'type')
             return
@@ -107,10 +107,12 @@ class Order {
         }
         let userDetail = userExistResult[0]
         let _score
+        // 处理积分购物
         if(type === cOrderType.exchange){
             logs = new Op(userDetail.name)
             logs.userId = userDetail.id
         }
+        // 处理收银系统
         if(type === cOrderType.bill){
             if(utilService.isStringEmpty(userId) ||
                 utilService.isStringEmpty(endNum)
@@ -145,6 +147,14 @@ class Order {
             goods = curOrder;
             _score = parseInt(curOrder.totalAmount * rate)
         }
+
+        // 处理票务系统
+        if(type === cOrderType.ticket){
+            logs = new Op(userDetail.name,`购票消费${payment}`,utilService.getTimeStamp(ctime))
+            logs.userId = userDetail.id
+            _score = parseInt(payment * rate)
+        }
+
         if(!utilService.isStringEmpty(goodsId)){
             // 自动绑定当前对应的商品信息
             let goodsCmd = {
@@ -247,7 +257,24 @@ class Order {
                 {
                     userId:userDetail.id,
                     orderId:uuid,
-                    msg:`下线消费${goods.totalAmount}`,
+                    msg:`线下消费${goods.totalAmount}`,
+                    score:_score
+                },true)
+        }
+        if(type === cOrderType.ticket){
+            // 用户增加积分
+            let subQuery =`
+                update user_info set
+                score = (score + ?)
+                where id = ?
+            `
+            await dbService.commonQuery(subQuery,[_score,userDetail.id])
+            // 添加积分记录
+            await Log.itemCreate(
+                {
+                    userId:userDetail.id,
+                    orderId:uuid,
+                    msg:`购票消费${payment}`,
                     score:_score
                 },true)
         }
