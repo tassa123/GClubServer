@@ -11,19 +11,22 @@ const UserController = require('../controller/user')
 const GoodsController = require('../controller/goods')
 const ActivityController = require('../controller/activity')
 const OrderController = require('../controller/order')
+const YinBaoController = require('../controller/yinbao')
 ApiRouter
     .post(appConfig.api, async(ctx) => {
         try {
             let params = ctx.request.query || {}
             let requestBody = ctx.request.body || {}
             let {sid,cmdType} = requestBody||{};
+            let headers = ctx.request.headers;
+            cmdType = cmdType || headers['cmd-type']
             // sid验证
             if(utilService.isStringEmpty(cmdType)){
                 ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')
                 return
             }
 
-            if([cCmdType.SysLogin,cCmdType.SysVcode,cCmdType.UserVcode,cCmdType.UserLogin,cCmdType.UserInfo,cCmdType.UserLoading].indexOf(cmdType) === -1){
+            if([cCmdType.SysLogin,cCmdType.SysVcode,cCmdType.YBsignature,cCmdType.UserLogin,cCmdType.UserInfo,'yb_test'].indexOf(cmdType) === -1){
                 if(utilService.isStringEmpty(sid)){
                     ctx.body = new RuleResult(cStatus.invalidSid)
                     return
@@ -51,6 +54,12 @@ ApiRouter
                     break;
                 case cCmdType.SysOrder:
                     await OrderController.sysOrder(ctx)
+                    break;
+                case cCmdType.YBsignature:
+                    await YinBaoController.getSignature(ctx)
+                    break;
+                case 'yb_test':
+                    await YinBaoController.test(ctx);
                     break;
                 default:
                     ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')

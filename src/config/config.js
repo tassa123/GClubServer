@@ -48,6 +48,8 @@ const cUserOp={
 }
 
 const cCmdType = {
+    // crm
+    YBsignature:"yb_signature",
     fileUpload:'file_upload',
     //admin
     SysLogin: 'sys_login',  //后台管理员登录
