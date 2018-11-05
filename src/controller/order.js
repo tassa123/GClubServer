@@ -89,11 +89,14 @@ class Order {
     }
     async itemCreate(ctx,innerCall = false){
         let requestBody = innerCall ? ctx : ctx.request.body || {}
-        let {op,outId,endNum,payTime,payment,userId,phone,goodsId,goods,score,rate=1.00,type,status=cStatus.normal,logs={},ctime} = requestBody;
+        let {op,outId,endNum,payTime,payment,userId,phone,goodsId,goods,type,status=cStatus.normal,ctime} = requestBody;
         if([cOrderType.bill,cOrderType.exchange,cOrderType.ticket].indexOf(type) === -1){
             ctx.body = new RuleResult(cStatus.invalidParams,null,'type')
             return
         }
+        let log={};
+        let score;
+        let rate=1.00;
         // create
         let uuid =utilService.getUUID();
         let insertQuery = `insert into order_info(??) values(?)`
@@ -106,11 +109,11 @@ class Order {
             return
         }
         let userDetail = userExistResult[0]
-        let _score
         // 处理积分购物
         if(type === cOrderType.exchange){
-            logs = new Op(userDetail.name)
-            logs.userId = userDetail.id
+            log = new Op(userDetail.name)
+            log.operatorId = userDetail.id
+            log.op = cOpType.create
         }
         // 处理收银系统
         if(type === cOrderType.bill){
@@ -142,17 +145,19 @@ class Order {
             }
 
             ctime = utilService.getTimeStamp(curOrder.datetime)
-            logs = new Op(userDetail.name,`线下消费${curOrder.totalAmount}`,ctime)
-            logs.userId = userDetail.id
+            log = new Op(userDetail.name,`线下消费${curOrder.totalAmount}`,ctime)
+            log.operatorId = userDetail.id
+            log.op = cOpType.create
             goods = curOrder;
-            _score = parseInt(curOrder.totalAmount * rate)
+            score = parseInt(curOrder.totalAmount * rate)
         }
 
         // 处理票务系统
         if(type === cOrderType.ticket){
-            logs = new Op(userDetail.name,`购票消费${payment}`,utilService.getTimeStamp(ctime))
-            logs.userId = userDetail.id
-            _score = parseInt(payment * rate)
+            log = new Op(userDetail.name,`购票消费${payment}`,utilService.getTimeStamp(ctime))
+            log.operatorId = userDetail.id
+            log.op = cOpType.create
+            score = parseInt(payment * rate)
         }
 
         if(!utilService.isStringEmpty(goodsId)){
@@ -182,8 +187,8 @@ class Order {
                 return
             }
             score = parseInt(goods.score * rate)
-            _score= score
-            logs.msg = `消耗${score}积分兑换`
+            log.msg = `消耗${score}积分兑换`
+            log.op = cOpType.create
         }
 
         if(!utilService.isStringEmpty(outId)){
@@ -222,9 +227,9 @@ class Order {
             propGroup.push('ctime')
             valueGroup.push(ctime)
         }
-        if(!utilService.isNullOrUndefined(logs)){
+        if(!utilService.isNullOrUndefined(log)){
             propGroup.push('logs')
-            valueGroup.push(JSON.stringify([logs]))
+            valueGroup.push(JSON.stringify([log]))
         }
 
         if(type === cOrderType.exchange){
@@ -234,14 +239,14 @@ class Order {
                 score = (score - ?)
                 where id = ?
             `
-            await dbService.commonQuery(subQuery,[_score,userDetail.id])
+            await dbService.commonQuery(subQuery,[score,userDetail.id])
             // 添加积分记录
             await Log.itemCreate(
                 {
                     userId:userDetail.id,
                     orderId:uuid,
                     msg:`兑换${goods.name}`,
-                    score:-Math.abs(_score)
+                    score:-Math.abs(score)
                 },true)
         }
         if(type === cOrderType.bill){
@@ -251,14 +256,14 @@ class Order {
                 score = (score + ?)
                 where id = ?
             `
-            await dbService.commonQuery(subQuery,[_score,userDetail.id])
+            await dbService.commonQuery(subQuery,[score,userDetail.id])
             // 添加积分记录
             await Log.itemCreate(
                 {
                     userId:userDetail.id,
                     orderId:uuid,
                     msg:`线下消费${goods.totalAmount}`,
-                    score:_score
+                    score:score
                 },true)
         }
         if(type === cOrderType.ticket){
@@ -268,14 +273,14 @@ class Order {
                 score = (score + ?)
                 where id = ?
             `
-            await dbService.commonQuery(subQuery,[_score,userDetail.id])
+            await dbService.commonQuery(subQuery,[score,userDetail.id])
             // 添加积分记录
             await Log.itemCreate(
                 {
                     userId:userDetail.id,
                     orderId:uuid,
                     msg:`购票消费${payment}`,
-                    score:_score
+                    score:score
                 },true)
         }
         // todo 积分变动检查用户等级
@@ -307,34 +312,35 @@ class Order {
         let params = ctx.request.query || {}
         let requestBody = ctx.request.body || {}
         let cmdType = (requestBody || {}).cmdType;
-        let {op,outId,userId,phone,goodsId,goods,score,rate=1.00,type,status=cStatus.normal,logs={}} = requestBody;
+        let {op,status,id,operatorId} = requestBody;
         let columnGroup = []
         let paramGroup = []
-        if(!utilService.isStringEmpty(amount)){
-            columnGroup.push('amount = ?')
-            paramGroup.push(amount)
+        if(status === cStatus.finished){
+            // 判断是否已经核销了
+            let existResult = await this.itemExists({id})
+            let itemDetail = existResult[0]
+            if(itemDetail.status === cStatus.finished){
+                ctx.body= new RuleResult(cStatus.existing,null,'已核销')
+                return
+            }
+            let operatorResult = await User.getItem({id:operatorId})
+            let operatorDetail = (operatorResult||[])[0]||{}
+            columnGroup.push('status = ?')
+            paramGroup.push(cStatus.finished)
+            columnGroup.push(`
+            logs = JSON_ARRAY_INSERT(
+        (case
+            when JSON_LENGTH(logs) <= 0 then '[]'
+            when JSON_LENGTH(logs) is null then '[]'
+            else logs end), 
+        '$[0]', CAST(? AS JSON))
+            `)
+            let log = new Op(operatorDetail.name)
+            log.operatorId = operatorId
+            log.setMsg(`${operatorDetail.name}核销了此券`)
+            log.op = cOpType.check
+            paramGroup.push(JSON.stringify(log))
         }
-        if(!utilService.isStringEmpty(online)){
-            columnGroup.push('online = ?')
-            paramGroup.push(online)
-        }
-        if(!utilService.isStringEmpty(name)){
-            columnGroup.push('name = ?')
-            paramGroup.push(name)
-        }
-        if(!utilService.isStringEmpty(score)){
-            columnGroup.push('score = ?')
-            paramGroup.push(score)
-        }
-        if(!utilService.isStringEmpty(des)){
-            columnGroup.push('des = ?')
-            paramGroup.push(des)
-        }
-        if(!utilService.isArrayEmpty(pic)){
-            columnGroup.push('pic = ?')
-            paramGroup.push(JSON.stringify(pic))
-        }
-
         paramGroup.push(id)
         let setQuery = `update order_info set ${columnGroup.join(',')} where id = ?`
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
@@ -361,7 +367,9 @@ class Order {
 
         let existQuery = `select 
                          id,
-                         del
+                         del,
+                         status,
+                         userId
                          from order_info 
                     ${_whereGroup.length>0 ?'where '+ _whereGroup.join(` ${buffer} `) : ''}
                     ${_whereGroup.length === 0 && whereGroup.length > 0 ? 'where '+whereGroup.join(` ${buffer} `) : ''}
@@ -371,11 +379,13 @@ class Order {
         return existResult
     }
     async getItem(params,countInfo){
-        let {id,skip,pageNum,filters,sorts} = params;
+        let {id,skip,pageNum,filters,sorts,additions} = params;
         skip = skip || 0;
         filters = filters || {}
         sorts = sorts || []
-        let {amount,online,name,score,ctime} = filters;
+        additions = additions || {}
+        let {userId,type,status,ctime,goodsId,outId,score} = filters;
+        let {logs,goods} = additions;
         let limit = pageNum || 10;
         let whereGroup = []
         let orderGroup = []
