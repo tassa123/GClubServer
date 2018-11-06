@@ -244,11 +244,11 @@ class Goods {
         }
 
         if(!utilService.isStringEmpty((ctime||[])[0])){
-            whereGroup.push('gi.ctime > ?')
+            whereGroup.push('gi.ctime >= ?')
             paramsGroup.push((ctime||[])[0])
         }
         if(!utilService.isStringEmpty((ctime||[])[1])){
-            whereGroup.push('gi.ctime < ?')
+            whereGroup.push('gi.ctime <= ?')
             paramsGroup.push((ctime||[])[1])
         }
 
@@ -260,8 +260,7 @@ class Goods {
         // }
         let detailQuery =
             `select
-                    gi.id as id,
-                    gi.del as del,
+                    gi.id as id,               
                     gi.amount as amount,
                     gi.online as online,
                     gi.name as name,

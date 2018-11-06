@@ -315,18 +315,22 @@ class Order {
         let {op,status,id,operatorId} = requestBody;
         let columnGroup = []
         let paramGroup = []
-        if(status === cStatus.finished){
+        if(status && status !== cStatus.acked){
+            ctx.body= new RuleResult(cStatus.invalidParams,null,'status')
+            return
+        }
+        if(status === cStatus.acked){
             // 判断是否已经核销了
             let existResult = await this.itemExists({id})
             let itemDetail = existResult[0]
-            if(itemDetail.status === cStatus.finished){
-                ctx.body= new RuleResult(cStatus.existing,null,'已核销')
+            if(itemDetail.status === cStatus.acked){
+                ctx.body= new RuleResult(cStatus.acked,null,'已核销')
                 return
             }
             let operatorResult = await User.getItem({id:operatorId})
             let operatorDetail = (operatorResult||[])[0]||{}
             columnGroup.push('status = ?')
-            paramGroup.push(cStatus.finished)
+            paramGroup.push(cStatus.acked)
             columnGroup.push(`
             logs = JSON_ARRAY_INSERT(
         (case
@@ -400,37 +404,47 @@ class Order {
             whereGroup.push('oi.del != 1')
             orderGroup.unshift('oi.ctime desc')
         }
-        if(!utilService.isStringEmpty(name)){
-            whereGroup.push('oi.name like ?')
-            paramsGroup.push(`%${name}%`)
+
+        if(!utilService.isArrayEmpty(type)){
+            whereGroup.push('oi.type in (?)')
+            paramsGroup.push(type)
         }
-        if(!utilService.isStringEmpty((amount||[])[0])){
-            whereGroup.push('oi.amount > ?')
-            paramsGroup.push((amount||[])[0])
+
+        if(!utilService.isArrayEmpty(status)){
+            whereGroup.push('oi.status in (?)')
+            paramsGroup.push(status)
         }
-        if(!utilService.isStringEmpty((amount||[])[1])){
-            whereGroup.push('oi.amount < ?')
-            paramsGroup.push((amount||[])[1])
+
+        if(!utilService.isStringEmpty(userId)){
+            whereGroup.push('oi.userId = ?')
+            paramsGroup.push(`${userId}`)
         }
+
+        if(!utilService.isStringEmpty(goodsId)){
+            whereGroup.push('oi.goodsId = ?')
+            paramsGroup.push(`${goodsId}`)
+        }
+
+        if(!utilService.isStringEmpty(outId)){
+            whereGroup.push('oi.outId = ?')
+            paramsGroup.push(`${outId}`)
+        }
+
         if(!utilService.isStringEmpty((score||[])[0])){
-            whereGroup.push('oi.score > ?')
+            whereGroup.push('oi.score >= ?')
             paramsGroup.push((score||[])[0])
         }
         if(!utilService.isStringEmpty((score||[])[1])){
-            whereGroup.push('oi.score < ?')
+            whereGroup.push('oi.score <= ?')
             paramsGroup.push((score||[])[1])
-        }
-        if(!utilService.isStringEmpty(online)){
-            whereGroup.push('oi.online = ?')
-            paramsGroup.push(online)
         }
 
         if(!utilService.isStringEmpty((ctime||[])[0])){
-            whereGroup.push('oi.ctime > ?')
+            whereGroup.push('oi.ctime >= ?')
             paramsGroup.push((ctime||[])[0])
         }
         if(!utilService.isStringEmpty((ctime||[])[1])){
-            whereGroup.push('oi.ctime < ?')
+            whereGroup.push('oi.ctime <= ?')
             paramsGroup.push((ctime||[])[1])
         }
 
@@ -443,17 +457,20 @@ class Order {
         let detailQuery =
             `select
                     oi.id as id,
-                    oi.del as del,
-                    oi.amount as amount,
-                    oi.online as online,
-                    oi.name as name,
+                    oi.outId as outId,
+                    oi.userId as userId,
+                    oi.goodsId as goodsId,
+                    ${goods ? 'oi.goods as goods,':''}   
+                     ${logs ? 'oi.logs as logs,':''}                
                     oi.score as score,
-                    oi.des as des,
-                    oi.pic as pic,
+                    oi.type as type,
+                    oi.status as status,
                     oi.ctime as ctime
-            from order_info as gi
+            from order_info as oi
            `
-        let allQuery = `select count(*) as tnum from order_info as gi`
+        let allQuery =
+            `select count(*) as tnum 
+             from order_info as oi`
         if(whereGroup.length > 0){
             detailQuery = `${detailQuery} where ${whereGroup.join(' and ')}`
             allQuery = `${allQuery} where ${whereGroup.join(' and ')}`
@@ -466,11 +483,23 @@ class Order {
         }
         let queryResult = await dbService.commonQuery(detailQuery,paramsGroup)
         let tnumResult = await dbService.commonQuery(allQuery,paramsGroup)
-        for(let row of queryResult){
-            if(!utilService.isStringEmpty(row.pic)){
-                row.pic = JSON.parse(row.pic)
+        for(let row of queryResult) {
+            if (!utilService.isStringEmpty(row.goods)) {
+                row.goods = JSON.parse(row.goods)
+                row.goods.id = _.cloneDeep(row.goodsId)
             }
+            delete row.goodsId
+            if (!utilService.isStringEmpty(row.logs)) {
+                row.logs = JSON.parse(row.logs)
+            }
+            // let userResult = await User.getItem({id: row.userId})
+            // let userDetail = userResult[0] || {}
+            row.user = {
+                id:row.userId,
+            }
+            delete  row.userId
         }
+
         if(!utilService.isNullOrUndefined(countInfo) && !utilService.isNullOrUndefined(countInfo.tnum)){
             countInfo.tnum = tnumResult[0].tnum
             countInfo.tpage = Math.ceil(tnumResult[0].tnum/limit)

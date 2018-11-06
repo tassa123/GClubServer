@@ -348,19 +348,19 @@ class User {
             paramsGroup.push(`${sex}`)
         }
         if(!utilService.isStringEmpty((ctime||[])[0])){
-            whereGroup.push('ui.ctime > ?')
+            whereGroup.push('ui.ctime >= ?')
             paramsGroup.push((ctime||[])[0])
         }
         if(!utilService.isStringEmpty((ctime||[])[1])){
-            whereGroup.push('ui.ctime < ?')
+            whereGroup.push('ui.ctime <= ?')
             paramsGroup.push((ctime||[])[1])
         }
         if(!utilService.isStringEmpty((activeTime||[])[0])){
-            whereGroup.push('ui.activeTime > ?')
+            whereGroup.push('ui.activeTime >= ?')
             paramsGroup.push((activeTime||[])[0])
         }
         if(!utilService.isStringEmpty((activeTime||[])[1])){
-            whereGroup.push('ui.activeTime < ?')
+            whereGroup.push('ui.activeTime <= ?')
             paramsGroup.push((activeTime||[])[1])
         }
 
@@ -373,7 +373,6 @@ class User {
         let detailQuery =
             `select
                     ui.id as id,
-                    ui.del as del,
                     ui.name as name,
                     ui.phone as phone,
                     ui.level as level,

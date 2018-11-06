@@ -212,19 +212,19 @@ class Log {
             paramsGroup.push(`%${name}%`)
         }
         if(!utilService.isStringEmpty((amount||[])[0])){
-            whereGroup.push('gi.amount > ?')
+            whereGroup.push('gi.amount >= ?')
             paramsGroup.push((amount||[])[0])
         }
         if(!utilService.isStringEmpty((amount||[])[1])){
-            whereGroup.push('gi.amount < ?')
+            whereGroup.push('gi.amount <= ?')
             paramsGroup.push((amount||[])[1])
         }
         if(!utilService.isStringEmpty((score||[])[0])){
-            whereGroup.push('gi.score > ?')
+            whereGroup.push('gi.score >= ?')
             paramsGroup.push((score||[])[0])
         }
         if(!utilService.isStringEmpty((score||[])[1])){
-            whereGroup.push('gi.score < ?')
+            whereGroup.push('gi.score <= ?')
             paramsGroup.push((score||[])[1])
         }
         if(!utilService.isStringEmpty(online)){
@@ -233,11 +233,11 @@ class Log {
         }
 
         if(!utilService.isStringEmpty((ctime||[])[0])){
-            whereGroup.push('gi.ctime > ?')
+            whereGroup.push('gi.ctime >= ?')
             paramsGroup.push((ctime||[])[0])
         }
         if(!utilService.isStringEmpty((ctime||[])[1])){
-            whereGroup.push('gi.ctime < ?')
+            whereGroup.push('gi.ctime <= ?')
             paramsGroup.push((ctime||[])[1])
         }
 
@@ -250,7 +250,6 @@ class Log {
         let detailQuery =
             `select
                     gi.id as id,
-                    gi.del as del,
                     gi.amount as amount,
                     gi.online as online,
                     gi.name as name,

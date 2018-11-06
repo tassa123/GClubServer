@@ -210,11 +210,11 @@ class Activity {
             paramsGroup.push(online)
         }
         if(!utilService.isStringEmpty((ctime||[])[0])){
-            whereGroup.push('ai.ctime > ?')
+            whereGroup.push('ai.ctime >= ?')
             paramsGroup.push((ctime||[])[0])
         }
         if(!utilService.isStringEmpty((ctime||[])[1])){
-            whereGroup.push('ai.ctime < ?')
+            whereGroup.push('ai.ctime <= ?')
             paramsGroup.push((ctime||[])[1])
         }
 
