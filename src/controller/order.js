@@ -23,16 +23,16 @@ class Order {
         let {op} = requestBody;
         switch (op) {
             case cOpType.get:
-                await this.itemGet(ctx)
+                ctx.body = await this.itemGet(requestBody)
                 break;
             case cOpType.create:
-                await this.itemCreate(ctx)
+                ctx.body = await this.itemCreate(requestBody)
                 break;
             case cOpType.delete:
-                await this.itemDelete(ctx)
+                ctx.body = await this.itemDelete(requestBody)
                 break;
             case cOpType.set:
-                await this.itemSet(ctx)
+                ctx.body = await this.itemSet(requestBody)
                 break;
             default:
                 ctx.body =  new RuleResult(cStatus.invalidParams,'','op');
@@ -60,9 +60,7 @@ class Order {
                 break;
         }
     }
-    async itemGet(ctx){
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemGet(requestBody){
         let {id,pageNum} = requestBody;
         let ruleResult = new RuleResult()
         let countInfo ={
@@ -85,14 +83,12 @@ class Order {
             ruleResult['pageNum'] = countInfo.pageNum
             ruleResult.setSt(countInfo.hasMore ? cStatus.ok : cStatus.noMore)
         }
-        ctx.body = ruleResult
+        return ruleResult
     }
-    async itemCreate(ctx,innerCall = false){
-        let requestBody = innerCall ? ctx : ctx.request.body || {}
+    async itemCreate(requestBody){
         let {op,outId,endNum,payTime,payment,userId,phone,goodsId,goods,type,status=cStatus.normal,ctime} = requestBody;
         if([cOrderType.bill,cOrderType.exchange,cOrderType.ticket].indexOf(type) === -1){
-            ctx.body = new RuleResult(cStatus.invalidParams,null,'type')
-            return
+            return new RuleResult(cStatus.invalidParams,null,'type')
         }
         let log={};
         let score;
@@ -105,8 +101,7 @@ class Order {
 
         let userExistResult =await User.itemExists({_buffer:'or',id:userId,phone:phone})
         if(userExistResult.length === 0){
-            ctx.body = new RuleResult(cStatus.notExists,null,'用户不存在')
-            return
+            return new RuleResult(cStatus.notExists,null,'用户不存在')
         }
         let userDetail = userExistResult[0]
         // 处理积分购物
@@ -120,8 +115,7 @@ class Order {
             if(utilService.isStringEmpty(userId) ||
                 utilService.isStringEmpty(endNum)
             ){
-                ctx.body = new RuleResult(cStatus.invalidParams)
-                return
+                return new RuleResult(cStatus.invalidParams)
             }
             let payDay = moment(payTime).format('YYYY-MM-DD')
             let timeSpan = [`${payDay} 00:00:00`,`${payDay} 23:59:59`]
@@ -134,14 +128,12 @@ class Order {
             })
             if(!curOrder){
                 // 订单不存在
-                ctx.body = new RuleResult(cStatus.notExists,null,'订单不存在');
-                return
+                return new RuleResult(cStatus.notExists,null,'订单不存在');
             }
             // 判断订单是否已经被核销
             let existResult = await this.itemExists({outId:outId})
             if(existResult.length > 0){
-                ctx.body = new RuleResult(cStatus.existing,null,'订单已被核销');
-                return
+                return new RuleResult(cStatus.existing,null,'订单已被核销');
             }
 
             ctime = utilService.getTimeStamp(curOrder.datetime)
@@ -167,24 +159,20 @@ class Order {
             }
             let goodsDetail = await Goods.getItem(goodsCmd)
             if(goodsDetail.length === 0){
-                ctx.body = new RuleResult(cStatus.notExists,null,'没有对应商品')
-                return
+                return new RuleResult(cStatus.notExists,null,'没有对应商品')
             }
             goods = goodsDetail[0]
             // 判断商品是否可售
             if(goods.online !== 1){
-                ctx.body = new RuleResult(cStatus.notAllowed,null,'商品不可售')
-                return
+                return new RuleResult(cStatus.notAllowed,null,'商品不可售')
             }
             // 判断库存是否充足
             if(goods.amount < 1){
-                ctx.body = new RuleResult(cStatus.shortOfGoods,null,'商品库存不足')
-                return
+                return new RuleResult(cStatus.shortOfGoods,null,'商品库存不足')
             }
             // 判断积分是否足够
             if(userDetail.score < goods.score){
-                ctx.body = new RuleResult(cStatus.shortOfFund,null,'积分不足')
-                return
+                return new RuleResult(cStatus.shortOfFund,null,'积分不足')
             }
             score = parseInt(goods.score * rate)
             log.msg = `消耗${score}积分兑换`
@@ -296,36 +284,27 @@ class Order {
             `
             await dbService.commonQuery(subQuery,[goods.id])
         }
-        ctx.body = new RuleResult(cStatus.ok,{id:uuid})
+        return new RuleResult(cStatus.ok,{id:uuid})
     }
-    async itemDelete(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemDelete(requestBody){
         let {op,id} = requestBody;
         let deleteQuery =  `update order_info set del = 1 where id = ?`
         let deleteResult = await dbService.commonQuery(deleteQuery,[id])
-        ctx.body = new RuleResult(cStatus.ok)
-        return
+        return new RuleResult(cStatus.ok)
     }
-    async itemSet(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemSet(requestBody){
         let {op,status,id,operatorId} = requestBody;
         let columnGroup = []
         let paramGroup = []
         if(status && status !== cStatus.acked){
-            ctx.body= new RuleResult(cStatus.invalidParams,null,'status')
-            return
+            return new RuleResult(cStatus.invalidParams,null,'status')
         }
         if(status === cStatus.acked){
             // 判断是否已经核销了
             let existResult = await this.itemExists({id})
             let itemDetail = existResult[0]
             if(itemDetail.status === cStatus.acked){
-                ctx.body= new RuleResult(cStatus.acked,null,'已核销')
-                return
+                return new RuleResult(cStatus.acked,null,'已核销')
             }
             let operatorResult = await User.getItem({id:operatorId})
             let operatorDetail = (operatorResult||[])[0]||{}
@@ -348,8 +327,7 @@ class Order {
         paramGroup.push(id)
         let setQuery = `update order_info set ${columnGroup.join(',')} where id = ?`
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
-        ctx.body= new RuleResult(cStatus.ok)
-        return
+        return new RuleResult(cStatus.ok)
     }
     async itemExists({_buffer,id,outId,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []
