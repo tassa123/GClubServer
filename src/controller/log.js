@@ -271,13 +271,14 @@ class Log {
             detailQuery = `${detailQuery} limit ${skip},${limit}`
         }
         let queryResult = await dbService.commonQuery(detailQuery,paramsGroup)
-        let tnumResult = await dbService.commonQuery(allQuery,paramsGroup)
+
         for(let row of queryResult){
             if(!utilService.isStringEmpty(row.pic)){
                 row.pic = JSON.parse(row.pic)
             }
         }
         if(!utilService.isNullOrUndefined(countInfo) && !utilService.isNullOrUndefined(countInfo.tnum)){
+            let tnumResult = await dbService.commonQuery(allQuery,paramsGroup)
             countInfo.tnum = tnumResult[0].tnum
             countInfo.tpage = Math.ceil(tnumResult[0].tnum/limit)
             countInfo.hasMore = (skip+limit)<tnumResult[0].tnum
