@@ -11,6 +11,8 @@ const {cStatus,cCmdType,cUserType,cOpType,cUserOp,cOrderType} = require('../conf
 const _ = require('lodash')
 const UserController = require('../controller/user')
 const OrderController = require('../controller/order')
+const path = require('path')
+const fs = require('fs')
 
 {
     let secretcode = 'ABCDEFG'
@@ -88,6 +90,18 @@ CrmRouter
                 st:'fail',
                 msg:'失败'
             }
+        }
+    })
+    .post('/yinbao', async(ctx) => {
+        let requestBody = ctx.request.body || {}
+        let dataFile =  path.resolve(__dirname,'..','..','yinbao.text')
+        try {
+            fs.appendFileSync(dataFile,JSON.stringify(requestBody))
+        }catch (e) {
+            console.log('yinbao error')
+        }
+        ctx.body = {
+            st:'success'
         }
     })
 
