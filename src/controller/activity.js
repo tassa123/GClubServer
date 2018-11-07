@@ -11,60 +11,22 @@ class Activity {
     constructor(){
 
     }
-    async sysActivity(ctx){
-        let ruleResult = new RuleResult()
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async sysActivity(requestBody){
         let {op} = requestBody;
         switch (op) {
             case cOpType.get:
-                await this.itemGet(ctx)
-                break;
+                return await this.itemGet(requestBody)
             case cOpType.create:
-                await this.itemCreate(ctx)
-                break;
+                return await this.itemCreate(requestBody)
             case cOpType.delete:
-                await this.itemDelete(ctx)
-                break;
+                return await this.itemDelete(requestBody)
             case cOpType.set:
-                await this.itemSet(ctx)
-                break;
+                return await this.itemSet(requestBody)
             default:
-                ctx.body =  new RuleResult(cStatus.invalidParams,'','op');
-                break;
+                return  new RuleResult(cStatus.invalidParams,'','op');
         }
     }
-    async userActivity(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {accountName,password} = requestBody;
-        if(utilService.isStringEmpty(accountName) || utilService.isStringEmpty(password)){
-            ctx.body = new RuleResult(cStatus.invalidParams);
-            return
-        }
-        let loginQuery =
-            `select id
-        from user_info
-        where type in (?) and accountName = ?  and password = ?
-        limit 1`
-        let loginResult =await dbService.commonQuery(loginQuery,[[cUserType.sys],accountName,password])
-        if(loginResult.length > 0){
-            let id = loginResult[0].id;
-            let detailResult = await this.getItem({id})
-            let detail = detailResult[0]
-            let sid = utilService.getSID();
-            await redisService.set(sid,id)
-            detail.sid = sid
-            ctx.body = new RuleResult(cStatus.ok,detail);
-        }else {
-            ctx.body = new RuleResult(cStatus.notExists);
-        }
-    }
-    async itemGet(ctx){
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemGet(requestBody){
         let {id,pageNum} = requestBody;
         let ruleResult = new RuleResult()
         let countInfo ={
@@ -87,12 +49,9 @@ class Activity {
             ruleResult['pageNum'] = countInfo.pageNum
             ruleResult.setSt(countInfo.hasMore ? cStatus.ok : cStatus.noMore)
         }
-        ctx.body = ruleResult
+        return ruleResult
     }
-    async itemCreate(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemCreate(requestBody){
         let {op,order,online,goodsId,ref,pic} = requestBody;
         // create
         let uuid =utilService.getUUID();
@@ -120,22 +79,15 @@ class Activity {
             valueGroup.push(JSON.stringify(pic))
         }
         let insertResult = await dbService.commonQuery(insertQuery,[propGroup,valueGroup])
-        ctx.body = new RuleResult(cStatus.ok,{id:uuid})
+        return new RuleResult(cStatus.ok,{id:uuid})
     }
-    async itemDelete(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemDelete(requestBody){
         let {op,id} = requestBody;
         let deleteQuery =  `delete from activity_info where id = ?`
         let deleteResult = await dbService.commonQuery(deleteQuery,[id])
-        ctx.body = new RuleResult(cStatus.ok)
-        return
+        return new RuleResult(cStatus.ok)
     }
-    async itemSet(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemSet(requestBody){
         let {op,id,order,online,goodsId,ref,pic} = requestBody;
         let columnGroup = []
         let paramGroup = []
@@ -162,8 +114,7 @@ class Activity {
         paramGroup.push(id)
         let setQuery = `update activity_info set ${columnGroup.join(',')} where id = ?`
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
-        ctx.body= new RuleResult(cStatus.ok)
-        return
+        return new RuleResult(cStatus.ok)
     }
     async itemExists({_buffer,id,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []

@@ -39,32 +39,31 @@ ApiRouter
                     }
                 }
             }
-
+            let _body;
             switch (cmdType){
                 case cCmdType.SysUser:
-                    await UserController.SysUser(ctx)
+                    _body = await UserController.SysUser(requestBody)
                     break;
                 case cCmdType.SysLogin:
-                    await UserController.SysLogin(ctx)
+                    _body = await UserController.SysLogin(requestBody)
                     break;
                 case cCmdType.SysGoods:
-                    await GoodsController.sysGoods(ctx)
+                    _body = await GoodsController.sysGoods(requestBody)
                     break;
                 case cCmdType.SysActivity:
-                    await ActivityController.sysActivity(ctx)
-                    break;
-                case cCmdType.SysOrder:
-                    await OrderController.sysOrder(ctx)
+                    _body = await ActivityController.sysActivity(requestBody)
                     break;
                 case cCmdType.UserOrder:
-                    await OrderController.userOrder(ctx)
+                case cCmdType.SysOrder:
+                    _body = await OrderController.sysOrder(requestBody)
                     break;
                 case 'yb_test':
-                    await YinBaoController.getMemberByNum(ctx)
+                    _body = await YinBaoController.getMemberByNum(requestBody)
                     break;
                 default:
-                    ctx.body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')
+                    _body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')
             }
+            ctx.body = _body;
         }catch (e){
             if(e && e.sqlState === '23000'){
                 ctx.body = new RuleResult(cStatus.existing,'','err')

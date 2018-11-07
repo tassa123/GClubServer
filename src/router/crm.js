@@ -64,7 +64,8 @@ CrmRouter
                     type:cUserType.user,
                     status:cStatus.unactivated
                 }
-                userId = await UserController.itemCreate(createCmd,true)
+                let result = await UserController.itemCreate(createCmd,true)
+                userId= result.data.id
                 // todo 短信推送
             }else {
                 userId = userExistResult[0].id
@@ -94,7 +95,7 @@ CrmRouter
     })
     .post('/yinbao', async(ctx) => {
         let requestBody = ctx.request.body || {}
-        let dataFile =  path.resolve(__dirname,'..','..','yinbao.text')
+        let dataFile =  path.resolve(__dirname,'..','..','yinbao.txt')
         try {
             fs.appendFileSync(dataFile,JSON.stringify(requestBody))
         }catch (e) {

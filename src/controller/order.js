@@ -15,49 +15,19 @@ class Order {
     constructor(){
 
     }
-    async sysOrder(ctx){
-        let ruleResult = new RuleResult()
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async sysOrder(requestBody){
         let {op} = requestBody;
         switch (op) {
             case cOpType.get:
-                ctx.body = await this.itemGet(requestBody)
-                break;
+                return await this.itemGet(requestBody)
             case cOpType.create:
-                ctx.body = await this.itemCreate(requestBody)
-                break;
+                return await this.itemCreate(requestBody)
             case cOpType.delete:
-                ctx.body = await this.itemDelete(requestBody)
-                break;
+                return await this.itemDelete(requestBody)
             case cOpType.set:
-                ctx.body = await this.itemSet(requestBody)
-                break;
+                return await this.itemSet(requestBody)
             default:
-                ctx.body =  new RuleResult(cStatus.invalidParams,'','op');
-                break;
-        }
-    }
-    async userOrder(ctx){
-        let requestBody = ctx.request.body || {}
-        let {op} = requestBody;
-        switch (op) {
-            case cOpType.get:
-                await this.itemGet(ctx)
-                break;
-            case cOpType.create:
-                await this.itemCreate(ctx)
-                break;
-            case cOpType.delete:
-                await this.itemDelete(ctx)
-                break;
-            case cOpType.set:
-                await this.itemSet(ctx)
-                break;
-            default:
-                ctx.body =  new RuleResult(cStatus.invalidParams,'','op');
-                break;
+                return  new RuleResult(cStatus.invalidParams,'','op');
         }
     }
     async itemGet(requestBody){
@@ -235,7 +205,7 @@ class Order {
                     orderId:uuid,
                     msg:`兑换${goods.name}`,
                     score:-Math.abs(score)
-                },true)
+                })
         }
         if(type === cOrderType.bill){
             // 用户增加积分

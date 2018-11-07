@@ -10,60 +10,23 @@ class Goods {
     constructor(){
 
     }
-    async sysGoods(ctx){
-        let ruleResult = new RuleResult()
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async sysGoods(requestBody){
         let {op} = requestBody;
         switch (op) {
             case cOpType.get:
-                await this.itemGet(ctx)
-                break;
+                return await this.itemGet(ctx)
             case cOpType.create:
-                await this.itemCreate(ctx)
-                break;
+                return await this.itemCreate(ctx)
             case cOpType.delete:
-               await this.itemDelete(ctx)
-                break;
+               return await this.itemDelete(ctx)
             case cOpType.set:
-                await this.itemSet(ctx)
-                break;
+                return await this.itemSet(ctx)
             default:
-                ctx.body =  new RuleResult(cStatus.invalidParams,'','op');
-                break;
+                return new RuleResult(cStatus.invalidParams,'','op');
         }
     }
-    async userGoods(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {accountName,password} = requestBody;
-        if(utilService.isStringEmpty(accountName) || utilService.isStringEmpty(password)){
-            ctx.body = new RuleResult(cStatus.invalidParams);
-            return
-        }
-        let loginQuery =
-            `select id
-        from user_info
-        where type in (?) and accountName = ?  and password = ?
-        limit 1`
-        let loginResult =await dbService.commonQuery(loginQuery,[[cUserType.sys],accountName,password])
-        if(loginResult.length > 0){
-            let id = loginResult[0].id;
-            let detailResult = await this.getItem({id})
-            let detail = detailResult[0]
-            let sid = utilService.getSID();
-            await redisService.set(sid,id)
-            detail.sid = sid
-            ctx.body = new RuleResult(cStatus.ok,detail);
-        }else {
-            ctx.body = new RuleResult(cStatus.notExists);
-        }
-    }
-    async itemGet(ctx){
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+
+    async itemGet(requestBody){
         let {id,pageNum} = requestBody;
         let ruleResult = new RuleResult()
         let countInfo ={
@@ -86,12 +49,9 @@ class Goods {
             ruleResult['pageNum'] = countInfo.pageNum
             ruleResult.setSt(countInfo.hasMore ? cStatus.ok : cStatus.noMore)
         }
-        ctx.body = ruleResult
+        return ruleResult
     }
-    async itemCreate(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemCreate(requestBody){
         let {op,id, amount,online,name,score,des,pic} = requestBody;
         // create
         let uuid =id|| utilService.getUUID();
@@ -123,22 +83,15 @@ class Goods {
             valueGroup.push(JSON.stringify(pic))
         }
         let insertResult = await dbService.commonQuery(insertQuery,[propGroup,valueGroup])
-        ctx.body = new RuleResult(cStatus.ok,{id:uuid})
+        return new RuleResult(cStatus.ok,{id:uuid})
     }
-    async itemDelete(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemDelete(requestBody){
         let {op,id} = requestBody;
         let deleteQuery =  `update goods_info set del = 1 where id = ?`
         let deleteResult = await dbService.commonQuery(deleteQuery,[id])
-        ctx.body = new RuleResult(cStatus.ok)
-        return
+        return new RuleResult(cStatus.ok)
     }
-    async itemSet(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemSet(requestBody){
         let {op,id, amount,online,name,score,des,pic} = requestBody;
         let columnGroup = []
         let paramGroup = []
@@ -170,8 +123,7 @@ class Goods {
         paramGroup.push(id)
         let setQuery = `update goods_info set ${columnGroup.join(',')} where id = ?`
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
-        ctx.body= new RuleResult(cStatus.ok)
-        return
+        return new RuleResult(cStatus.ok)
     }
     async itemExists({_buffer,id,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []

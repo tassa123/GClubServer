@@ -90,10 +90,7 @@ class User {
         await redisService.set(sid,userId)
         ctx.body = new RuleResult(cStatus.ok,{id:userId,sid:sid});
     }
-    async SysUser(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async SysUser(requestBody){
         let {op} = requestBody;
         if([cOpType.create,cOpType.get,cOpType.set,cOpType.delete].indexOf(op) === -1){
             ctx.body = new RuleResult(cStatus.invalidParams);
@@ -101,22 +98,17 @@ class User {
         }
         switch (op) {
             case cOpType.get:
-                await this.itemGet(ctx)
-                break;
+                return await this.itemGet(requestBody)
             case cOpType.create:
-                await this.itemCreate(ctx)
-                break;
+                return await this.itemCreate(requestBody)
             // case cOpType.delete:
             //    await itemDelete(ctx)
             //     break;
             case cOpType.set:
-                await this.itemSet(ctx)
-                break;
+                return await this.itemSet(requestBody)
         }
     }
-    async itemGet(ctx){
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemGet(requestBody={}){
         let {id,pageNum} = requestBody;
         let ruleResult = new RuleResult()
         let countInfo ={
@@ -139,16 +131,14 @@ class User {
             ruleResult['pageNum'] = countInfo.pageNum
             ruleResult.setSt(countInfo.hasMore ? cStatus.ok : cStatus.noMore)
         }
-        ctx.body = ruleResult
+        return ruleResult
     }
-    async itemCreate(ctx,innerCall=false){
-        let requestBody = innerCall ? ctx : ctx.request.body || {}
+    async itemCreate(requestBody={}){
         let {op, name, phone, level=1, score=0, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime} = requestBody;
         let existResult = await this.itemExists({_buffer:'or',phone,accountName,wxAccountName,openid})
         if(existResult.length>0){
             let userDetail = existResult[0]
-            ctx.body = new RuleResult(cStatus.existing,{id:userDetail.id})
-            return
+            return new RuleResult(cStatus.existing,{id:userDetail.id})
         }else {
             // create
             let uuid = utilService.getUUID();
@@ -156,29 +146,14 @@ class User {
         (id,name, phone, level, score, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime)
         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
             let insertResult = await dbService.commonQuery(insertQuery,[uuid,name,phone,level,score,accountName,wxAccountName,password,type,status,openid,birthday?utilService.getTimeStamp(birthday):null,sex,headPic,activeTime ? utilService.getTimeStamp(activeTime):null])
-            ctx.body = new RuleResult(cStatus.ok,{id:uuid})
-            return uuid
+            return new RuleResult(cStatus.ok,{id:uuid})
         }
     }
-    async itemDelete(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {op,id} = requestBody;
-        let deleteQuery =  `update user_info set status = ? where id = ?`
-        let deleteResult = await dbService.commonQuery(deleteQuery,[cStatus.deleted,id])
-        ctx.body = new RuleResult(cStatus.ok)
-        return
-    }
-    async itemSet(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+    async itemSet(requestBody){
         let {op,id, name, phone, level, score, accountName, wxAccountName, password, status, openid, birthday, sex, headPic, activeTime} = requestBody;
         let existResult =await this.itemExists({_buffer:'or',id})
         if(existResult.length === 0){
-            ctx.body = new RuleResult(cStatus.notExists,{},'用户不存在')
-            return
+            return new RuleResult(cStatus.notExists,{},'用户不存在')
         }
 
         let columnGroup = []
@@ -235,8 +210,7 @@ class User {
         paramGroup.push(id)
         let setQuery = `update user_info set ${columnGroup.join(',')} where id = ?`
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
-        ctx.body= new RuleResult(cStatus.ok)
-        return
+       return new RuleResult(cStatus.ok)
     }
     async itemExists({_buffer,id,phone,accountName,wxAccountName,openid,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []
