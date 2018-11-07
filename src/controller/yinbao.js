@@ -57,30 +57,27 @@ class YinBao{
         return await request
     }
 
-    async getMemberByNum(ctx){
-        ctx.body = await this.commonRequest({ customerNum:"member001"},'/pospal-api2/openapi/v1/customerOpenApi/queryByNumber')
-        return
+    async getMemberByNum(requestBody){
+        return await this.commonRequest({ customerNum:"member001"},'/pospal-api2/openapi/v1/customerOpenApi/queryByNumber')
     }
-    async getMemberByUID(ctx){
-        ctx.body = await this.commonRequest(
+    async getMemberByUID(requestBody){
+        return await this.commonRequest(
             {
                 customerUid: 592384817498735200
             },
             '/pospal-api2/openapi/v1/customerOpenApi/queryByUid'
         )
-        return
     }
-    async getMemberByTel(ctx){
-        ctx.body = await this.commonRequest(
+    async getMemberByTel(requestBody){
+       return await this.commonRequest(
             {
                 customerTel:'13122390160'
             },
             '/pospal-api2/openapi/v1/customerOpenapi/queryBytel'
         )
-        return
     }
-    async createMember(ctx){
-        ctx.body = await this.commonRequest(
+    async createMember(requestBody){
+        return await this.commonRequest(
             {
                 customerInfo:{
                     categoryName:'会员卡',
@@ -96,14 +93,14 @@ class YinBao{
             '/pospal-api2/openapi/v1/customerOpenApi/add'
         )
     }
-    async getMember(ctx){
-        ctx.body = await this.commonRequest(
+    async getMember(requestBody){
+        return await this.commonRequest(
             {},
             '/pospal-api2/openapi/v1/customerOpenApi/queryCustomerPages'
         )
     }
-    async getBill(ctx){
-        ctx.body = await this.commonRequest(
+    async getBill(requestBody){
+         return await this.commonRequest(
             {
                 "startTime":moment('2018-11-06 13:00:00').format('YYYY-MM-DD HH:mm:ss'),
                 "endTime": moment('2018-11-06 20:00:00').format('YYYY-MM-DD HH:mm:ss')
@@ -111,16 +108,16 @@ class YinBao{
             '/pospal-api2/openapi/v1/ticketOpenApi/queryTicketPages'
         )
     }
-    async getPushConfig(ctx){
-        ctx.body = await this.commonRequest(
+    async getPushConfig(requestBody){
+        return await this.commonRequest(
             {
 
             },
             '/pospal-api2/openapi/v1/openNotificationOpenApi/queryPushUrl'
         )
     }
-    async setPushConfig(ctx){
-        ctx.body = await this.commonRequest(
+    async setPushConfig(requestBody){
+        return await this.commonRequest(
             {
                 "pushUrl":"http://gc.r-m.top/push/yinbao"
             },
