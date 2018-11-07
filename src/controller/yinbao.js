@@ -5,33 +5,21 @@ const moment = require('moment')
 const md5 =  require('md5');
 const crypto = require('crypto');
 const https = require("https");
+const http = require("http");
 
 
 class YinBao{
     constructor(){
 
     }
-    async getSignature(ctx){
-        let requestBody = ctx.request.body || {}
-        let JSONstr = JSON.stringify(requestBody)
-        let strFinal = `${appKey.trim()}${JSONstr.trim()}`
-        let body = {
-            'time-stamp':(new Date()).getTime(),
-            'data-signature':crypto.createHash('md5').update(strFinal).digest("hex").toUpperCase()
-        }
-        ctx.body = body;
-    }
 
-    async getBill(timespan){
-        let JSONstr = JSON.stringify({
-            "appId":appID,
-            "startTime":moment(timespan[0]).format('YYYY-MM-DD HH:mm:ss'),
-            "endTime": moment(timespan[1]).format('YYYY-MM-DD HH:mm:ss')
-        })
+    async commonRequest(body={},path){
+        body.appId = appID;
+        let JSONstr = JSON.stringify(body)
         let strFinal = `${appKey.trim()}${JSONstr.trim()}`
         let options = {
             host: "area12-win.pospal.cn",
-            path: `/pospal-api2/openapi/v1/ticketOpenApi/queryTicketPages`,
+            path: path,
             port: 443,
             method: "POST",
             headers: {
@@ -66,107 +54,78 @@ class YinBao{
             req.write(JSONstr);
             req.end();
         });
-        let result = await request
-        if(!result || result.status !== 'success'){
-            console.log(result,JSONstr)
-            throw  new Error('yinbao error')
-        }else {
-            return result
-        }
+        return await request
     }
 
-    async getPushConfig(ctx){
-        let JSONstr = JSON.stringify({
-            "appId":"38E72CCD5D2A1245EBDE37D4487D6EB4",
-        })
-        let strFinal = `${appKey.trim()}${JSONstr.trim()}`
-        let options = {
-            host: "area12-win.pospal.cn",
-            path: `/pospal-api2/openapi/v1/openNotificationOpenApi/queryPushUrl`,
-            port: 443,
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json;charset=utf-8",
-                "time-stamp":(new Date()).getTime()+"",
-                'data-signature':crypto.createHash('md5').update(strFinal).digest("hex").toUpperCase(),
-                "accept-encoding":"gzip,deflate",
-                "User-Agent":"openApi"
-            }
-        };
-        let request =  new Promise((resolve, reject) => {
-            const req = https.request(options, response => {
-                let result = "";
-                // utf8 编码
-                response.setEncoding("utf8");
-                response.on("data", data => {
-                    result = result + data;
-                });
-                response.on("end", () => {
-                    try {
-                        let res = JSON.parse(result)
-                        resolve(res);
-                    } catch (e) {
-                        reject(e);
-                    }
-                });
-            });
-            req.on("error", (e)=> {
-                console.log(e);
-                reject(e);
-            });
-            req.write(JSONstr);
-            req.end();
-        });
-        let result = await request
-        ctx.body = result
+    async getMemberByNum(ctx){
+        ctx.body = await this.commonRequest({ customerNum:"member001"},'/pospal-api2/openapi/v1/customerOpenApi/queryByNumber')
         return
+    }
+    async getMemberByUID(ctx){
+        ctx.body = await this.commonRequest(
+            {
+                customerUid: 592384817498735200
+            },
+            '/pospal-api2/openapi/v1/customerOpenApi/queryByUid'
+        )
+        return
+    }
+    async getMemberByTel(ctx){
+        ctx.body = await this.commonRequest(
+            {
+                customerTel:'13122390160'
+            },
+            '/pospal-api2/openapi/v1/customerOpenapi/queryBytel'
+        )
+        return
+    }
+    async createMember(ctx){
+        ctx.body = await this.commonRequest(
+            {
+                customerInfo:{
+                    categoryName:'会员卡',
+                    number:'member002',
+                    name:'郑元元',
+                    point:0,
+                    discount:0,
+                    balance:0,
+                    phone:'13600673364',
+                    enable:1
+                }
+            },
+            '/pospal-api2/openapi/v1/customerOpenApi/add'
+        )
+    }
+    async getMember(ctx){
+        ctx.body = await this.commonRequest(
+            {},
+            '/pospal-api2/openapi/v1/customerOpenApi/queryCustomerPages'
+        )
+    }
+    async getBill(ctx){
+        ctx.body = await this.commonRequest(
+            {
+                "startTime":moment('2018-11-06 13:00:00').format('YYYY-MM-DD HH:mm:ss'),
+                "endTime": moment('2018-11-06 20:00:00').format('YYYY-MM-DD HH:mm:ss')
+            },
+            '/pospal-api2/openapi/v1/ticketOpenApi/queryTicketPages'
+        )
+    }
+    async getPushConfig(ctx){
+        ctx.body = await this.commonRequest(
+            {
+
+            },
+            '/pospal-api2/openapi/v1/openNotificationOpenApi/queryPushUrl'
+        )
     }
     async setPushConfig(ctx){
-        let JSONstr = JSON.stringify({
-            "appId":"38E72CCD5D2A1245EBDE37D4487D6EB4",
-            "pushUrl":"http://gc.r-m.top/push/yinbao"
-        })
-        let strFinal = `${appKey.trim()}${JSONstr.trim()}`
-        let options = {
-            host: "area12-win.pospal.cn",
-            path: `/pospal-api2/openapi/v1/openNotificationOpenApi/updatePushUrl`,
-            port: 443,
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json;charset=utf-8",
-                "time-stamp":(new Date()).getTime()+"",
-                'data-signature':crypto.createHash('md5').update(strFinal).digest("hex").toUpperCase(),
-                "accept-encoding":"gzip,deflate",
-                "User-Agent":"openApi"
-            }
-        };
-        let request =  new Promise((resolve, reject) => {
-            const req = https.request(options, response => {
-                let result = "";
-                // utf8 编码
-                response.setEncoding("utf8");
-                response.on("data", data => {
-                    result = result + data;
-                });
-                response.on("end", () => {
-                    try {
-                        let res = JSON.parse(result)
-                        resolve(res);
-                    } catch (e) {
-                        reject(e);
-                    }
-                });
-            });
-            req.on("error", (e)=> {
-                console.log(e);
-                reject(e);
-            });
-            req.write(JSONstr);
-            req.end();
-        });
-        let result = await request
-        ctx.body = result
-        return
+        ctx.body = await this.commonRequest(
+            {
+                "pushUrl":"http://gc.r-m.top/push/yinbao"
+            },
+            '/pospal-api2/openapi/v1/openNotificationOpenApi/updatePushUrl'
+        )
     }
 }
 
