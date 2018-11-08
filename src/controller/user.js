@@ -5,36 +5,108 @@ const dbService = require('../service/db-service')
 const _ = require('lodash')
 const moment = require('moment')
 const redisService = require('../service/redis-service')
+const levelConfig = [
+    {
+        scoreSpan:[0,1999],
+        title:'普通会员',
+        rate:1.0
+    },
+    {
+        scoreSpan:[2000,4999],
+        title:'白银会员',
+        rate:1.1
+    },
+    {
+        scoreSpan:[5000,19999],
+        title:'白金会员',
+        rate:1.2
+    },
+    {
+        scoreSpan:[20000,null],
+        title:'白金会员',
+        rate:1.3
+    }
+]
 
 class User {
     constructor(){
 
     }
 
-    async UserInfo(ctx){
-        let ruleResult = new RuleResult()
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {op,id} = requestBody;
-        if(utilService.isStringEmpty(op)){
-            ctx.body = new RuleResult(cStatus.invalidParams,'','op');
-            return
-        }
-        if(op === cOpType.get){
-            let userResult = await getItem(requestBody)
-            ctx.body = new RuleResult(0 === userResult.length ? cStatus.notExists : cStatus.ok,userResult[0]);
-            return
-        }
-        if(op === cOpType.set){
-            await this.itemSet(ctx)
-            return
+    getScoreInfo(totalScore = 0) {
+        for(let level of levelConfig){
+            let min = level.scoreSpan[0]
+            let max = level.scoreSpan[1]
+            if(min && max){
+                if(totalScore>=min && totalScore<=max){
+                    return {
+                        title:level.title,
+                        rate:level.rate
+                    }
+                }
+            }
+            if(!min && max){
+                if(totalScore<=max){
+                    return {
+                        title:level.title,
+                        rate:level.rate
+                    }
+                }
+            }
+            if(min && !max){
+                if(totalScore>=min){
+                    return {
+                        title:level.title,
+                        rate:level.rate
+                    }
+                }
+            }
         }
     }
-    async SysLogin(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
+
+    // 用户积分处理
+    async userScore({id,score,symbol=1}){
+        if(utilService.isStringEmpty(id) ||
+            utilService.isStringEmpty(score)
+        ){
+            return
+        }
+        let originLevel;
+        let curLevel;
+        score = Math.abs(score)
+        if(score<1){
+            return
+        }
+        let paramGroup = []
+        let valueGroup = []
+        if(symbol > 0){
+            paramGroup.push('totalScore = (totalScore+?)')
+            valueGroup.push(score)
+            paramGroup.push('score = (score+?)')
+            valueGroup.push(score)
+            // 获取上一等级
+            let userResult = await this.getItem({id:id})
+            let userDetail = userResult[0]
+            originLevel = userDetail.level
+            let scoreInfo = this.getScoreInfo(userDetail.totalScore + score)
+            curLevel = scoreInfo.title
+        }else {
+            paramGroup.push('score = (score-?)')
+            valueGroup.push(score)
+        }
+        valueGroup.push(id)
+        let scoreQuery = `update user_info set ${paramGroup.join(',')} where id = ?`
+        await dbService.commonQuery(scoreQuery,valueGroup)
+        // todo 微信推送积分变动
+
+        // 处理升级
+        if(symbol>0){
+            if(originLevel !== curLevel){
+                //todo 微信推送等级升级
+            }
+        }
+    }
+    async sysLogin(requestBody){
         let {accountName,password} = requestBody;
         if(utilService.isStringEmpty(accountName) || utilService.isStringEmpty(password)){
             ctx.body = new RuleResult(cStatus.invalidParams);
@@ -53,44 +125,12 @@ class User {
             let sid = utilService.getSID();
             await redisService.set(sid,id)
             detail.sid = sid
-            ctx.body = new RuleResult(cStatus.ok,detail);
+            return new RuleResult(cStatus.ok,detail);
         }else {
-            ctx.body = new RuleResult(cStatus.notExists);
+            return new RuleResult(cStatus.notExists);
         }
     }
-    async UserLogin(ctx){
-        let params = ctx.request.query || {}
-        let requestBody = ctx.request.body || {}
-        let cmdType = (requestBody || {}).cmdType;
-        let {phone,id} = requestBody;
-        if(utilService.isStringEmpty(id) && utilService.isStringEmpty(phone)){
-            ctx.body = new RuleResult(cStatus.invalidParams);
-            return
-        }
-        let existResult = await this.itemExists({_buffer:'and',phone,id},['type in (?)'],[[cUserType.user,cUserType.admin]])
-        if(existResult.length === 0){
-            ctx.body = new RuleResult(cStatus.notExists,'','此用户不在理光系统中');
-            return
-        }
-        let userDetail = existResult[0] || {}
-        let userId = userDetail.id
-        if(userDetail.status === cStatus.deleted){
-            ctx.body = new RuleResult(cStatus.deny,{id:userId},'此用户已被锁定');
-            return
-        }
-        if(utilService.isStringEmpty(userDetail.activeTime)){
-            let updateQuery = `update user_info set activeTime = CURRENT_TIMESTAMP where id = ?`
-            await dbService.commonQuery(updateQuery,[userId])
-        }
-        if(userDetail.status === cStatus.unactivated){
-            let updateQuery = `update user_info set status = ? where id = ?`
-            await dbService.commonQuery(updateQuery,[cStatus.normal,userId])
-        }
-        let sid = utilService.getSID();
-        await redisService.set(sid,userId)
-        ctx.body = new RuleResult(cStatus.ok,{id:userId,sid:sid});
-    }
-    async SysUser(requestBody){
+    async sysUser(requestBody){
         let {op} = requestBody;
         if([cOpType.create,cOpType.get,cOpType.set,cOpType.delete].indexOf(op) === -1){
             ctx.body = new RuleResult(cStatus.invalidParams);
@@ -134,7 +174,7 @@ class User {
         return ruleResult
     }
     async itemCreate(requestBody={}){
-        let {op, name, phone, level=1, score=0, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime} = requestBody;
+        let {op, name, phone, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime} = requestBody;
         let existResult = await this.itemExists({_buffer:'or',phone,accountName,wxAccountName,openid})
         if(existResult.length>0){
             let userDetail = existResult[0]
@@ -143,14 +183,14 @@ class User {
             // create
             let uuid = utilService.getUUID();
             let insertQuery = `insert into user_info
-        (id,name, phone, level, score, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime)
-        values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-            let insertResult = await dbService.commonQuery(insertQuery,[uuid,name,phone,level,score,accountName,wxAccountName,password,type,status,openid,birthday?utilService.getTimeStamp(birthday):null,sex,headPic,activeTime ? utilService.getTimeStamp(activeTime):null])
+        (id,name, phone, accountName, wxAccountName, password, type, status, openid, birthday, sex, headPic, activeTime)
+        values(?,?,?,?,?,?,?,?,?,?,?,?,?)`
+            let insertResult = await dbService.commonQuery(insertQuery,[uuid,name,phone,accountName,wxAccountName,password,type,status,openid,birthday?utilService.getTimeStamp(birthday):null,sex,headPic,activeTime ? utilService.getTimeStamp(activeTime):null])
             return new RuleResult(cStatus.ok,{id:uuid})
         }
     }
     async itemSet(requestBody){
-        let {op,id, name, phone, level, score, accountName, wxAccountName, password, status, openid, birthday, sex, headPic, activeTime} = requestBody;
+        let {id, name, accountName, wxAccountName, password, status, openid, birthday, sex, headPic, activeTime} = requestBody;
         let existResult =await this.itemExists({_buffer:'or',id})
         if(existResult.length === 0){
             return new RuleResult(cStatus.notExists,{},'用户不存在')
@@ -161,10 +201,6 @@ class User {
         if(!utilService.isStringEmpty(name)){
             columnGroup.push('name = ?')
             paramGroup.push(name)
-        }
-        if(!utilService.isStringEmpty(level)){
-            columnGroup.push('level = ?')
-            paramGroup.push(level)
         }
         if(!utilService.isStringEmpty(status)){
             columnGroup.push('status = ?')
@@ -253,8 +289,7 @@ class User {
                          ybId,
                          ybNumber,
                          name,                      
-                         phone,
-                         level,
+                         phone,             
                          score,
                          accountName,
                          wxAccountName,
@@ -277,7 +312,7 @@ class User {
         skip = skip || 0;
         filters = filters || {}
         sorts = sorts || []
-        let {name, phone, level, score, accountName, wxAccountName, type, status, openid, birthday, sex, headPic, ctime, activeTime} = filters;
+        let {name, phone,totalScore, score, accountName, wxAccountName, type, status, openid, birthday, sex, headPic, ctime, activeTime} = filters;
         let limit = pageNum || 10;
         let whereGroup = []
         let orderGroup = []
@@ -324,6 +359,14 @@ class User {
             whereGroup.push('ui.sex = ?')
             paramsGroup.push(`${sex}`)
         }
+        if(!utilService.isStringEmpty((totalScore||[])[0])){
+            whereGroup.push('ui.totalScore >= ?')
+            paramsGroup.push((totalScore||[])[0])
+        }
+        if(!utilService.isStringEmpty((totalScore||[])[1])){
+            whereGroup.push('ui.totalScore <= ?')
+            paramsGroup.push((totalScore||[])[1])
+        }
         if(!utilService.isStringEmpty((ctime||[])[0])){
             whereGroup.push('ui.ctime >= ?')
             paramsGroup.push((ctime||[])[0])
@@ -352,7 +395,7 @@ class User {
                     ui.id as id,
                     ui.name as name,
                     ui.phone as phone,
-                    ui.level as level,
+                    ui.totalScore as totalScore,           
                     ui.score as score,
                     ui.accountName as accountName,
                     ui.wxAccountName as wxAccountName,
@@ -384,7 +427,19 @@ class User {
         let queryResult = await dbService.commonQuery(detailQuery,paramsGroup)
 
         for(let row of queryResult){
-
+            if([cUserType.sys,cUserType.admin].indexOf(row.type) > -1){
+                delete  row.score;
+                delete  row.totalScore;
+                delete  row.openid;
+                delete  row.wxAccountName;
+                delete  row.phone;
+            }else {
+                row.score = parseInt(row.score || 0)
+                row.totalScore = parseInt(row.totalScore || 0)
+                let scoreInfo = this.getScoreInfo(row.totalScore)
+                row.level = scoreInfo.title;
+                row.rate = scoreInfo.rate;
+            }
         }
         if(!utilService.isNullOrUndefined(countInfo) && !utilService.isNullOrUndefined(countInfo.tnum)){
             let tnumResult = await dbService.commonQuery(allQuery,paramsGroup)

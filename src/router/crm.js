@@ -34,13 +34,66 @@ CrmRouter
         try {
             let requestBody = ctx.request.body || {}
             console.log(requestBody)
+            let {cmd,appkey,body} = requestBody
+            if(cmd !== 'ticket.new'){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'cmd无效'
+                }
+                return
+            }
+            body = body ||{}
+            let {orderNo,msgMobile,realPay,voucherId,status,addtime,tvList} = body;
+            if(utilService.isStringEmpty(orderNo)){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'body.orderNo'
+                }
+                return
+            }
+            if(utilService.isStringEmpty(msgMobile)){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'body.msgMobile'
+                }
+                return
+            }
+            if(utilService.isStringEmpty(realPay)){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'body.realPay'
+                }
+                return
+            }
+            if(utilService.isStringEmpty(voucherId)){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'body.voucherId'
+                }
+                return
+            }
+            if(utilService.isStringEmpty(status)){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'body.status'
+                }
+                return
+            }
+            if(utilService.isStringEmpty(addtime)){
+                ctx.body = {
+                    st:cStatus.invalidParams,
+                    msg:'body.addtime'
+                }
+                return
+            }
+
+
             ctx.body = {
                 st:'ok',
                 msg:'成功'
             }
             return
             let headers = ctx.request.headers;
-            let {orderNo,msgMobile,realPay,voucherId,status,addtime,tvList} = requestBody
             if(utilService.isStringEmpty(orderNo) ||
                 utilService.isStringEmpty(msgMobile) ||
                 utilService.isStringEmpty(realPay) ||
@@ -104,56 +157,62 @@ CrmRouter
     .post('/yinbao', async(ctx) => {
         let requestBody = ctx.request.body || {}
         ctx.body = {
-            st:'success'
+            st:'success',
+            msg:'成功'
         }
-        // 判断是否是会员消费
-        requestBody = {
-            cmd: 'ticket.new',
-            timestamp: 1541597991909,
-            bornTimeStamp: 1541597991206,
-            version: '1.0',
-            appId: '38E72CCD5D2A1245EBDE37D4487D6EB4',
-            body: '{"sn":"201811072139446280008","uid":812042922159547394,"customerUid":716605181840344476,"customerBalanceUsedLogs":[{"usedMoney":584.00,"datetime":"2018-11-07 21:39:46","operateType":1,"afterUsedMoney":5716.60}],"customerPointGaintLogs":[]}'
+        try {
+            // 判断结构
+            if(!requestBody ||
+                utilService.isStringEmpty(requestBody.body) ||
+                requestBody.appId !== YBAppID ||
+                requestBody.cmd !== 'ticket.new'
+            ){
+                ctx.body.msg = '不是订单事件'
+                return
+            }
+            let cmd = JSON.parse(requestBody.body)
+            // 判断是否是会员消费
+            if(!cmd.customerUid || 0 == cmd.customerUid){
+                ctx.body.msg = '不是会员消费'
+                return
+            }
+            // 判断此会员是否在会员系统中
+            let userResult =await UserController.itemExists({ybId:cmd.customerUid})
+            if(0 === userResult.length){
+                ctx.body.msg = '不是会员'
+                return
+            }
+            let userDetail = userResult[0]
+            // 判断此订单是否在订单系统中核销过
+            let orderExistResult =await OrderController.itemExists({ybId:cmd.sn})
+            if(orderExistResult.length > 0){
+                ctx.body.msg = '订单已被核销'
+                return
+            }
+            // 获取订单详情
+            let ybOrderResult = await YinBao.getOrderById(cmd.sn)
+            if(!ybOrderResult || ybOrderResult.status !== 'success' || !ybOrderResult.data){
+                ctx.body.msg = '获取银豹订单失败'
+                return
+            }
+            let ybOrder = ybOrderResult.data
+            // 创建收银订单
+            ctx.body = await OrderController.itemCreate({
+                ybId:cmd.sn,
+                goods:ybOrder,
+                payment:ybOrder.totalAmount,
+                userId:userDetail.id,
+                type:cOrderType.bill,
+                ctime:ybOrder.datetime
+            })
+        }catch (e) {
+            logger.error(e)
+            ctx.body = {
+                st:'fail',
+                msg:'系统错误'
+            }
         }
-        // 判断结构
-        if(!requestBody ||
-            utilService.isStringEmpty(requestBody.body) ||
-            requestBody.appId !== YBAppID ||
-            requestBody.cmd !== 'ticket.new'
-        ){
-            return
-        }
-        let cmd = JSON.parse(requestBody.body)
-        // 判断是否是会员消费
-        if(!cmd.customerUid || 0 == cmd.customerUid){
-            return
-        }
-        // 判断此会员是否在老鬼会员系统中
-        let userExistResult =await UserController.itemExists({ybId:cmd.customerUid})
-        if(0 === userExistResult.length){
-            return
-        }
-        let userDetail = userExistResult[0]
-        // 判断此订单是否在订单系统中核销过
-        let orderExistResult =await UserController.itemExists({ybId:cmd.sn})
-        if(orderExistResult.length > 0){
-            return
-        }
-        // 获取订单详情
-        let ybOrderResult = await YinBao.getOrderById(cmd.sn)
-        if(!ybOrderResult || ybOrderResult.status !== 'success' || !ybOrderResult.data){
-            return
-        }
-        let ybOrder = ybOrderResult.data
-        // op,ybId,ticketId,ybOrder,payment,userId,goodsId,goods,type,status=cStatus.normal,ctime
-        await OrderController.itemCreate({
-            ybId:cmd.sn,
-            goods:ybOrder,
-            payment:ybOrder.totalAmount,
-            userId:userDetail.id,
-            type:cOrderType.bill,
-            ctime:ybOrder.datetime
-        })
+
     })
 
 

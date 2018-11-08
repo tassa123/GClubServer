@@ -11,6 +11,7 @@ const moment = require('moment')
 const Token = 'i54zyhCKa3o49c4X2' //微信token
 const AppId = 'wx95fd881c05d8828d'
 const AppSecret = 'f377f13881f0c9337650590b8236b8ef'
+// jyimedia1393432702JYIMEDIA201811 //密码备份
 const backgroundUrl = 'http://mmbiz.qpic.cn/mmbiz_jpg/vPFgKalzufqFfOvRltHsRxN3J4Na5MGrNuMfGAarN0mT5iaChN2tbZOLFYMLh4t2zBDJ1VqZlSnqDIrm5qGeuQw/0'
 const logoUrl = 'http://mmbiz.qpic.cn/mmbiz_jpg/vPFgKalzufqFfOvRltHsRxN3J4Na5MGrNuMfGAarN0mT5iaChN2tbZOLFYMLh4t2zBDJ1VqZlSnqDIrm5qGeuQw/0'
 const cardId = 'pW7GpxAm7A4lW8vzWwpUIjfwcNXg'
@@ -56,11 +57,12 @@ class Weixin {
     constructor(){
         this.AccessToken = ''
         this.AccessTokenTime = ''
-        this.init()
+        // this.init()
     }
 
     async init(){
-        // await this.getAccessToken()
+        await this.getAccessToken()
+        console.log(`access_token:${this.AccessToken}`)
         // let result = await this.createMemberCard()
         // console.log(result)
     }
@@ -101,7 +103,7 @@ class Weixin {
                         }
                         this.AccessTokenTime = moment()
                         this.AccessToken = res.access_token
-                        console.log(`access_token:${this.AccessToken}`)
+
                         resolve(res.access_token);
                     } catch (e) {
                         this.clearAccessToken()

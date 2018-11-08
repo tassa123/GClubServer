@@ -26,7 +26,7 @@ ApiRouter
                 return
             }
 
-            if([cCmdType.SysLogin,cCmdType.SysVcode,cCmdType.YBsignature,cCmdType.UserLogin,cCmdType.UserInfo,
+            if([cCmdType.SysLogin,cCmdType.SysVcode,cCmdType.UserLogin,
                 'yb_test'].indexOf(cmdType) === -1){
                 if(utilService.isStringEmpty(sid)){
                     ctx.body = new RuleResult(cStatus.invalidSid)
@@ -42,10 +42,10 @@ ApiRouter
             let _body;
             switch (cmdType){
                 case cCmdType.SysUser:
-                    _body = await UserController.SysUser(requestBody)
+                    _body = await UserController.sysUser(requestBody)
                     break;
                 case cCmdType.SysLogin:
-                    _body = await UserController.SysLogin(requestBody)
+                    _body = await UserController.sysLogin(requestBody)
                     break;
                 case cCmdType.SysGoods:
                     _body = await GoodsController.sysGoods(requestBody)

@@ -62,18 +62,18 @@ class Order {
         }
         let log={};
         let score;
-        let rate=1.00;
-        // create
+        let rate;
         let uuid =utilService.getUUID();
         let insertQuery = `insert into order_info(??) values(?)`
         let propGroup = ['id']
         let valueGroup = [uuid]
 
-        let userExistResult =await User.itemExists({_buffer:'or',id:userId})
-        if(userExistResult.length === 0){
+        let userResult =await User.getItem({id:userId})
+        if(0 === userResult.length){
             return new RuleResult(cStatus.notExists,null,'用户不存在')
         }
-        let userDetail = userExistResult[0]
+        let userDetail = userResult[0]
+        rate = userDetail.rate;
         // 处理积分购物
         if(type === cOrderType.exchange){
             log = new Op(userDetail.name)
@@ -174,12 +174,7 @@ class Order {
 
         if(type === cOrderType.exchange){
             // 用户扣除积分
-            let subQuery =`
-                update user_info set
-                score = (score - ?)
-                where id = ?
-            `
-            await dbService.commonQuery(subQuery,[score,userDetail.id])
+            await User.userScore({id:userId,score:score,symbol:-1})
             // 添加积分记录
             await Log.itemCreate(
                 {
@@ -191,12 +186,7 @@ class Order {
         }
         if(type === cOrderType.bill){
             // 用户增加积分
-            let subQuery =`
-                update user_info set
-                score = (score + ?)
-                where id = ?
-            `
-            await dbService.commonQuery(subQuery,[score,userDetail.id])
+            await User.userScore({id:userId,score:score,symbol:1})
             // 添加积分记录
             await Log.itemCreate(
                 {
@@ -207,13 +197,7 @@ class Order {
                 },true)
         }
         if(type === cOrderType.ticket){
-            // 用户增加积分
-            let subQuery =`
-                update user_info set
-                score = (score + ?)
-                where id = ?
-            `
-            await dbService.commonQuery(subQuery,[score,userDetail.id])
+            await User.userScore({id:userId,score:score,symbol:1})
             // 添加积分记录
             await Log.itemCreate(
                 {
@@ -223,8 +207,6 @@ class Order {
                     score:score
                 },true)
         }
-        // todo 积分变动检查用户等级
-
         // 添加订单记录
         let insertResult = await dbService.commonQuery(insertQuery,[propGroup,valueGroup])
         if(type === cOrderType.exchange){

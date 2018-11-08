@@ -5,7 +5,7 @@ CREATE TABLE `user_info` (
 `ybNumber` varchar (100)  COMMENT '银豹会员号',
 `name`  VARCHAR (100)  COMMENT '昵称',
 `phone` varchar(30)  comment '用户电话',
-`level` int default 1  comment '会员等级',
+`totalScore` int default 0 comment '历史总积分',
 `score` int default 0 comment '积分',
 `accountName` VARCHAR (20)   COMMENT '账户名',
 `wxAccountName`VARCHAR (50)   COMMENT '微信账户名',
