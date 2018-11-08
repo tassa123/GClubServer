@@ -33,7 +33,6 @@ CrmRouter
     .post('/ticket', async(ctx) => {
         try {
             let requestBody = ctx.request.body || {}
-            console.log(requestBody)
             let {cmd,appkey,body} = requestBody
             if(cmd !== 'ticket.new'){
                 ctx.body = {
@@ -92,60 +91,42 @@ CrmRouter
                 st:'ok',
                 msg:'成功'
             }
-            return
-            let headers = ctx.request.headers;
-            if(utilService.isStringEmpty(orderNo) ||
-                utilService.isStringEmpty(msgMobile) ||
-                utilService.isStringEmpty(realPay) ||
-                utilService.isStringEmpty(voucherId) ||
-                utilService.isStringEmpty(status)
-            ){
-                ctx.body = {
-                    st:'invalidParams',
-                    msg:'缺少参数'
-                }
-                return
-            }
+            
             // 判断订单是否已创建
-            let orderuserExistResult = await OrderController.itemExists({outId:orderNo})
-            if(orderuserExistResult.length > 0){
-                ctx.body = {
-                    st:'existing',
-                    msg:'订单已存在'
-                }
+            let orderResult = await OrderController.itemExists({ticketId:orderNo})
+            if(orderResult.length > 0){
+                logger.info(`票务已存在,id:${orderResult.id}  ticketId:${orderNo}`)
                 return
             }
             let userId
             // 确认用户是否已经存在
-            let userExistResult = await UserController.itemExists({phone:msgMobile})
-            if(0 === userExistResult.length){
+            let userResult = await UserController.itemExists({phone:msgMobile})
+            if(0 === userResult.length){
                 // 如果该手机号没有注册会员 则主动注册 并短信通知
                 let createCmd = {
                     phone:msgMobile,
                     type:cUserType.user,
                     status:cStatus.unactivated
                 }
-                let result = await UserController.itemCreate(createCmd,true)
-                userId= result.data.id
-                // todo 短信推送
-            }else {
-                userId = userExistResult[0].id
+                await UserController.itemCreate(createCmd,true)
             }
+            userResult = await UserController.itemExists({phone:msgMobile})
+            let userDetail = userResult[0]
+            if(userDetail.status === cStatus.unactivated){
+                // todo 邀请注册会员
+            }
+            userId = userResult[0].id
+
             // 创建订单
             let orderCreateCmd = {
-                outId:orderNo,
-                userId:userId,
-                goods:requestBody,
+                ticketId:orderNo,
                 payment:realPay,
+                userId:userId,
+                goods:body,
                 type:cOrderType.ticket,
                 ctime:addtime
             }
-            let orderCreateResult = await OrderController.itemCreate(orderCreateCmd,true)
-            ctx.body = {
-                st:'ok',
-                msg:''
-            }
-
+            await OrderController.itemCreate(orderCreateCmd)
         }catch (e){
             logger.error(e)
             ctx.body = {

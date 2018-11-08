@@ -178,7 +178,12 @@ class User {
         let existResult = await this.itemExists({_buffer:'or',phone,accountName,wxAccountName,openid})
         if(existResult.length>0){
             let userDetail = existResult[0]
-            return new RuleResult(cStatus.existing,{id:userDetail.id})
+            if(userDetail.status === cStatus.normal){
+                // 已经被注册
+                return new RuleResult(cStatus.existing,{id:userDetail.id})
+            }else {
+                return new RuleResult(cStatus.existing,{id:userDetail.id})
+            }
         }else {
             // create
             let uuid = utilService.getUUID();

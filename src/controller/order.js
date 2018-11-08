@@ -76,17 +76,12 @@ class Order {
         rate = userDetail.rate;
         // 处理积分购物
         if(type === cOrderType.exchange){
-            log = new Op(userDetail.name)
-            log.operatorId = userDetail.id
+            log.ctime = utilService.getTimeStamp()
             log.op = cOpType.create
         }
         // 处理收银系统
         if(type === cOrderType.bill){
-            if(utilService.isStringEmpty(userId)){
-                return new RuleResult(cStatus.invalidParams)
-            }
-            ctime = utilService.getTimeStamp(goods.datetime)
-            score = parseInt(goods.totalAmount * rate)
+            score = parseInt(payment * rate)
         }
 
         // 处理票务系统
@@ -167,7 +162,7 @@ class Order {
             propGroup.push('ctime')
             valueGroup.push(ctime)
         }
-        if(!utilService.isNullOrUndefined(log)){
+        if(!utilService.isNullOrUndefined(log) && Object.keys(log).length > 0){
             propGroup.push('logs')
             valueGroup.push(JSON.stringify([log]))
         }
@@ -208,7 +203,7 @@ class Order {
                 },true)
         }
         // 添加订单记录
-        let insertResult = await dbService.commonQuery(insertQuery,[propGroup,valueGroup])
+        await dbService.commonQuery(insertQuery,[propGroup,valueGroup])
         if(type === cOrderType.exchange){
             // 操作库存
             let subQuery =`
@@ -263,7 +258,7 @@ class Order {
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
         return new RuleResult(cStatus.ok)
     }
-    async itemExists({_buffer,id,ybId,...others},_whereGroup,_paramGroup){
+    async itemExists({_buffer,id,ybId,ticketId,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []
         let whereGroup = [];
         let paramGroup = _paramGroup || [];
@@ -275,6 +270,10 @@ class Order {
         if(!utilService.isStringEmpty(ybId)){
             whereGroup.push('ybId = ?')
             paramGroup.push(ybId)
+        }
+        if(!utilService.isStringEmpty(ticketId)){
+            whereGroup.push('ticketId = ?')
+            paramGroup.push(ticketId)
         }
         if(whereGroup.length>0){
             whereGroup[0] = `(${whereGroup[0]}`
