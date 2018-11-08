@@ -58,7 +58,7 @@ ApiRouter
                     _body = await OrderController.sysOrder(requestBody)
                     break;
                 case 'yb_test':
-                    _body = await YinBaoController.getPushConfig(requestBody)
+                    _body = await YinBaoController.getOrderById(requestBody)
                     break;
                 default:
                     _body = new RuleResult(cStatus.unknownCmd,'','unknownCmd')

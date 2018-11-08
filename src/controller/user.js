@@ -212,7 +212,7 @@ class User {
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
        return new RuleResult(cStatus.ok)
     }
-    async itemExists({_buffer,id,phone,accountName,wxAccountName,openid,...others},_whereGroup,_paramGroup){
+    async itemExists({_buffer,id,ybId,phone,accountName,wxAccountName,openid,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []
         let whereGroup = [];
         let paramGroup = _paramGroup || [];
@@ -220,6 +220,10 @@ class User {
         if(!utilService.isStringEmpty(id)){
             whereGroup.push('id = ?')
             paramGroup.push(id)
+        }
+        if(!utilService.isStringEmpty(ybId)){
+            whereGroup.push('ybId = ?')
+            paramGroup.push(ybId)
         }
         if(!utilService.isStringEmpty(phone)){
             whereGroup.push('phone = ?')
@@ -246,7 +250,9 @@ class User {
         let existQuery = `select 
                          id,
                          del,
-                         name,
+                         ybId,
+                         ybNumber,
+                         name,                      
                          phone,
                          level,
                          score,
@@ -256,9 +262,6 @@ class User {
                          type,
                          status,
                          openid,
-                         birthday,
-                         sex,
-                         headPic,
                          ctime,
                          activeTime
                          from user_info 

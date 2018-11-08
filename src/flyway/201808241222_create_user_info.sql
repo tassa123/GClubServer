@@ -1,6 +1,8 @@
 CREATE TABLE `user_info` (
 `id` varchar(36) CHARACTER SET utf8mb4 NOT NULL COMMENT 'id',
 `del` int(1) default 0 COMMENT '删除标志位',
+`ybId` varchar (100)  COMMENT '银豹id customerUid',
+`ybNumber` varchar (100)  COMMENT '银豹会员号',
 `name`  VARCHAR (100)  COMMENT '昵称',
 `phone` varchar(30)  comment '用户电话',
 `level` int default 1  comment '会员等级',
@@ -20,5 +22,7 @@ PRIMARY KEY (`id`),
 UNIQUE KEY(`phone`),
 UNIQUE KEY(`accountName`),
 UNIQUE KEY(`wxAccountName`),
-UNIQUE KEY(`openid`)
+UNIQUE KEY(`openid`),
+UNIQUE KEY(`ybId`),
+UNIQUE KEY(`ybNumber`)
 )ENGINE = InnoDB DEFAULT CHARSET = utf8 COMMENT = '用户信息表';

@@ -11,8 +11,10 @@ const {cStatus,cCmdType,cUserType,cOpType,cUserOp,cOrderType} = require('../conf
 const _ = require('lodash')
 const UserController = require('../controller/user')
 const OrderController = require('../controller/order')
+const YinBao = require('../controller/yinbao')
 const path = require('path')
 const fs = require('fs')
+const YBAppID = '38E72CCD5D2A1245EBDE37D4487D6EB4'
 
 {
     let secretcode = 'ABCDEFG'
@@ -28,9 +30,15 @@ const fs = require('fs')
     // console.log(sign,timestamp)
 }
 CrmRouter
-    .post('/ticket/notice', async(ctx) => {
+    .post('/ticket', async(ctx) => {
         try {
             let requestBody = ctx.request.body || {}
+            console.log(requestBody)
+            ctx.body = {
+                st:'ok',
+                msg:'成功'
+            }
+            return
             let headers = ctx.request.headers;
             let {orderNo,msgMobile,realPay,voucherId,status,addtime,tvList} = requestBody
             if(utilService.isStringEmpty(orderNo) ||
@@ -95,15 +103,57 @@ CrmRouter
     })
     .post('/yinbao', async(ctx) => {
         let requestBody = ctx.request.body || {}
-        let dataFile =  path.resolve(__dirname,'..','..','yinbao.txt')
-        try {
-            fs.appendFileSync(dataFile,JSON.stringify(requestBody))
-        }catch (e) {
-            console.log('yinbao error')
-        }
         ctx.body = {
             st:'success'
         }
+        // 判断是否是会员消费
+        requestBody = {
+            cmd: 'ticket.new',
+            timestamp: 1541597991909,
+            bornTimeStamp: 1541597991206,
+            version: '1.0',
+            appId: '38E72CCD5D2A1245EBDE37D4487D6EB4',
+            body: '{"sn":"201811072139446280008","uid":812042922159547394,"customerUid":716605181840344476,"customerBalanceUsedLogs":[{"usedMoney":584.00,"datetime":"2018-11-07 21:39:46","operateType":1,"afterUsedMoney":5716.60}],"customerPointGaintLogs":[]}'
+        }
+        // 判断结构
+        if(!requestBody ||
+            utilService.isStringEmpty(requestBody.body) ||
+            requestBody.appId !== YBAppID ||
+            requestBody.cmd !== 'ticket.new'
+        ){
+            return
+        }
+        let cmd = JSON.parse(requestBody.body)
+        // 判断是否是会员消费
+        if(!cmd.customerUid || 0 == cmd.customerUid){
+            return
+        }
+        // 判断此会员是否在老鬼会员系统中
+        let userExistResult =await UserController.itemExists({ybId:cmd.customerUid})
+        if(0 === userExistResult.length){
+            return
+        }
+        let userDetail = userExistResult[0]
+        // 判断此订单是否在订单系统中核销过
+        let orderExistResult =await UserController.itemExists({ybId:cmd.sn})
+        if(orderExistResult.length > 0){
+            return
+        }
+        // 获取订单详情
+        let ybOrderResult = await YinBao.getOrderById(cmd.sn)
+        if(!ybOrderResult || ybOrderResult.status !== 'success' || !ybOrderResult.data){
+            return
+        }
+        let ybOrder = ybOrderResult.data
+        // op,ybId,ticketId,ybOrder,payment,userId,goodsId,goods,type,status=cStatus.normal,ctime
+        await OrderController.itemCreate({
+            ybId:cmd.sn,
+            goods:ybOrder,
+            payment:ybOrder.totalAmount,
+            userId:userDetail.id,
+            type:cOrderType.bill,
+            ctime:ybOrder.datetime
+        })
     })
 
 

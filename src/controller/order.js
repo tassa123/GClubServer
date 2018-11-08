@@ -56,7 +56,7 @@ class Order {
         return ruleResult
     }
     async itemCreate(requestBody){
-        let {op,outId,endNum,payTime,payment,userId,phone,goodsId,goods,type,status=cStatus.normal,ctime} = requestBody;
+        let {ybId,ticketId,payment,userId,goodsId,goods,type,status=cStatus.normal,ctime} = requestBody;
         if([cOrderType.bill,cOrderType.exchange,cOrderType.ticket].indexOf(type) === -1){
             return new RuleResult(cStatus.invalidParams,null,'type')
         }
@@ -69,7 +69,7 @@ class Order {
         let propGroup = ['id']
         let valueGroup = [uuid]
 
-        let userExistResult =await User.itemExists({_buffer:'or',id:userId,phone:phone})
+        let userExistResult =await User.itemExists({_buffer:'or',id:userId})
         if(userExistResult.length === 0){
             return new RuleResult(cStatus.notExists,null,'用户不存在')
         }
@@ -82,43 +82,15 @@ class Order {
         }
         // 处理收银系统
         if(type === cOrderType.bill){
-            if(utilService.isStringEmpty(userId) ||
-                utilService.isStringEmpty(endNum)
-            ){
+            if(utilService.isStringEmpty(userId)){
                 return new RuleResult(cStatus.invalidParams)
             }
-            let payDay = moment(payTime).format('YYYY-MM-DD')
-            let timeSpan = [`${payDay} 00:00:00`,`${payDay} 23:59:59`]
-            let orderResult = await YinBao.getBill(timeSpan)
-            let orderList = orderResult.data.result || []
-            let endNumReg = new RegExp(".*"+endNum.toString()+"$")
-            let curOrder = _.find(orderList,(order)=>{
-                outId = order.sn.toString();
-                return endNumReg.test(outId) && order.invalid === 0;
-            })
-            if(!curOrder){
-                // 订单不存在
-                return new RuleResult(cStatus.notExists,null,'订单不存在');
-            }
-            // 判断订单是否已经被核销
-            let existResult = await this.itemExists({outId:outId})
-            if(existResult.length > 0){
-                return new RuleResult(cStatus.existing,null,'订单已被核销');
-            }
-
-            ctime = utilService.getTimeStamp(curOrder.datetime)
-            log = new Op(userDetail.name,`线下消费${curOrder.totalAmount}`,ctime)
-            log.operatorId = userDetail.id
-            log.op = cOpType.create
-            goods = curOrder;
-            score = parseInt(curOrder.totalAmount * rate)
+            ctime = utilService.getTimeStamp(goods.datetime)
+            score = parseInt(goods.totalAmount * rate)
         }
 
         // 处理票务系统
         if(type === cOrderType.ticket){
-            log = new Op(userDetail.name,`购票消费${payment}`,utilService.getTimeStamp(ctime))
-            log.operatorId = userDetail.id
-            log.op = cOpType.create
             score = parseInt(payment * rate)
         }
 
@@ -149,9 +121,19 @@ class Order {
             log.op = cOpType.create
         }
 
-        if(!utilService.isStringEmpty(outId)){
-            propGroup.push('outId')
-            valueGroup.push(outId)
+        if(!utilService.isStringEmpty(ybId)){
+            propGroup.push('ybId')
+            valueGroup.push(ybId)
+        }
+
+        if(!utilService.isStringEmpty(ticketId)){
+            propGroup.push('ticketId')
+            valueGroup.push(ticketId)
+        }
+
+        if(!utilService.isStringEmpty(payment)){
+            propGroup.push('payment')
+            valueGroup.push(payment)
         }
         if(!utilService.isStringEmpty(userId)){
             propGroup.push('userId')
@@ -299,7 +281,7 @@ class Order {
         let setResult = await dbService.commonQuery(setQuery,paramGroup)
         return new RuleResult(cStatus.ok)
     }
-    async itemExists({_buffer,id,outId,...others},_whereGroup,_paramGroup){
+    async itemExists({_buffer,id,ybId,...others},_whereGroup,_paramGroup){
         _whereGroup = _whereGroup || []
         let whereGroup = [];
         let paramGroup = _paramGroup || [];
@@ -308,9 +290,9 @@ class Order {
             whereGroup.push('id = ?')
             paramGroup.push(id)
         }
-        if(!utilService.isStringEmpty(outId)){
-            whereGroup.push('outId = ?')
-            paramGroup.push(outId)
+        if(!utilService.isStringEmpty(ybId)){
+            whereGroup.push('ybId = ?')
+            paramGroup.push(ybId)
         }
         if(whereGroup.length>0){
             whereGroup[0] = `(${whereGroup[0]}`
@@ -321,6 +303,7 @@ class Order {
                          id,
                          del,
                          status,
+                         ybId,
                          userId
                          from order_info 
                     ${_whereGroup.length>0 ?'where '+ _whereGroup.join(` ${buffer} `) : ''}
@@ -336,7 +319,7 @@ class Order {
         filters = filters || {}
         sorts = sorts || []
         additions = additions || {}
-        let {userId,type,status,ctime,goodsId,outId,score} = filters;
+        let {userId,type,status,ctime,goodsId,ybId,score} = filters;
         let {logs,goods} = additions;
         let limit = pageNum || 10;
         let whereGroup = []
@@ -373,9 +356,9 @@ class Order {
             paramsGroup.push(`${goodsId}`)
         }
 
-        if(!utilService.isStringEmpty(outId)){
-            whereGroup.push('oi.outId = ?')
-            paramsGroup.push(`${outId}`)
+        if(!utilService.isStringEmpty(ybId)){
+            whereGroup.push('oi.ybId = ?')
+            paramsGroup.push(`${ybId}`)
         }
 
         if(!utilService.isStringEmpty((score||[])[0])){
@@ -405,7 +388,7 @@ class Order {
         let detailQuery =
             `select
                     oi.id as id,
-                    oi.outId as outId,
+                    oi.ybId as ybId,
                     oi.userId as userId,
                     oi.goodsId as goodsId,
                     ${goods ? 'oi.goods as goods,':''}   

@@ -58,7 +58,7 @@ class YinBao{
     }
 
     async getMemberByNum(requestBody){
-        return await this.commonRequest({ customerNum:"member001"},'/pospal-api2/openapi/v1/customerOpenApi/queryByNumber')
+        return await this.commonRequest({customerNum:"member001"},'/pospal-api2/openapi/v1/customerOpenApi/queryByNumber')
     }
     async getMemberByUID(requestBody){
         return await this.commonRequest(
@@ -122,6 +122,14 @@ class YinBao{
                 "pushUrl":"http://gc.r-m.top/push/yinbao"
             },
             '/pospal-api2/openapi/v1/openNotificationOpenApi/updatePushUrl'
+        )
+    }
+    async getOrderById(sn='201811072139446280008'){
+        return await this.commonRequest(
+            {
+                sn:'201811072139446280008'
+            },
+            '/pospal-api2/openapi/v1/ticketOpenApi/queryTicketBySn'
         )
     }
 }
